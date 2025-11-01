@@ -1,8 +1,10 @@
 <template>
-  <h1>Evocation – MemoryMap</h1>
-  <MarkerList />
+  <div id="app">
+    <header>
+      <h1>Evocation – MemoryMap</h1>
+    </header>
+    <RouterView />
+  </div>
 </template>
 
-<script setup lang="ts">
-import MarkerList from './components/MarkerList.vue'
-</script>
+<script setup lang="ts"></script>
