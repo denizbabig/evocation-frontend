@@ -1,22 +1,30 @@
 <template>
   <div>
     <h2>Meine Reiseorte</h2>
-    <ul>
-      <MarkerItem
-        v-for="marker in markers"
-        :key="marker.id"
-        :marker="marker"
-      />
+
+    <p v-if="store.isLoading">⏳ Lade Marker...</p>
+    <p v-else-if="store.error">{{ store.error }}</p>
+
+    <ul v-else>
+      <li v-for="m in store.markers" :key="m.id">
+         {{ m.title }} – {{ m.description }}
+      </li>
     </ul>
   </div>
 </template>
 
-<script setup lang="ts">
-import MarkerItem from './MarkerItem.vue'
 
-const markers = [
-  { id: 1, title: 'Kyoto', date: '2025-08-31' },
-  { id: 2, title: 'Tokyo', date: '2025-09-03' },
-  { id: 3, title: 'Chengdu', date: '2025-09-10' }
-]
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useMarkerStore } from '../stores/MarkerStore'
+
+const store = useMarkerStore()
+
+onMounted(() => {
+  store.loadMarkers()
+})
 </script>
+
+
+
