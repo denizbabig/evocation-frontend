@@ -15,7 +15,7 @@ export const useMarkerStore = defineStore('marker', {
       this.isLoading = true
       this.error = null
       try {
-        const res = await axios.get<Marker[]>('https://evocation.onrender.com/api/marker')
+        const res = await axios.get<Marker[]>('http://localhost:8080/api/marker')
         this.markers = res.data
       } catch (err: any) {
         this.error = 'Fehler beim Laden der Marker'
@@ -27,7 +27,7 @@ export const useMarkerStore = defineStore('marker', {
 
     async addMarker(newMarker: Omit<Marker, 'id'>) {
       try {
-        const res = await axios.post<Marker>('https://evocation.onrender.com/api/marker', newMarker)
+        const res = await axios.post<Marker>('http://localhost:8080/api/marker', newMarker)
         this.markers.push(res.data)
       } catch (err: any) {
         this.error = 'Fehler beim Speichern '
@@ -37,7 +37,7 @@ export const useMarkerStore = defineStore('marker', {
 
     async deleteMarker(id: number) {
       try {
-        await axios.delete(`https://evocation.onrender.com/api/marker/${id}`)
+        await axios.delete(`http://localhost:8080/api/marker/${id}`)
         this.markers = this.markers.filter(m => m.id !== id)
       } catch (err: any) {
         this.error = 'Fehler beim Löschen '
