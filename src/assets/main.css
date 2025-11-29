@@ -2,6 +2,27 @@
 @import "tailwindcss/preflight";
 @import "tailwindcss/utilities";
 
+@theme {
+  --color-brand-50:  #29353C;
+  --color-brand-100: #44576D;
+  --color-brand-200: #768A97;
+  --color-brand-300: #AAC7D8;
+  --color-brand-400: #DFEBF6;
+  --color-brand-500: #E6E6E6;
+  --color-green-50:  #20352B;
+  --color-green-100: #2F5843;
+  --color-green-200: #4E7C61;
+  --color-green-300: #7FA88B;
+  --color-green-400: #D2E7DB;
+  --color-green-500: #EDF7F1;
+  --color-green-600: #032F404;
+  --color-green-700: #1D5273;
+  --color-green-800: #C9DFF2;
+  --color-green-900: #96B9D9;
+  --color-green-1000: #00BCD4;
+
+}
+
 #app {
   width: 100%;
   min-height: 100vh;

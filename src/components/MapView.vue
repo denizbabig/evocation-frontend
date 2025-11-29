@@ -1,30 +1,34 @@
+<template>
+  <!-- WICHTIG: Der äußere Wrapper ist RELATIV, die Map ist ABSOLUT -->
+  <div class="relative w-full h-full">
+    <div id="map" class="absolute inset-0 z-1"></div>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 import maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+
+const map = ref<maplibregl.Map | null>(null)
 
 onMounted(() => {
-  const map = new maplibregl.Map({
+  map.value = new maplibregl.Map({
     container: 'map',
-    style: `https://api.maptiler.com/maps/019a44a4-c1e8-7e63-a06a-1ec6f9e8289a/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`,
+    style: 'https://demotiles.maplibre.org/style.json', // kein Key nötig
     center: [13.405, 52.52],
-    zoom: 2,
+    zoom: 3
   })
-
-  map.on('load', () => {
-    map.setProjection({ type: 'globe' })
-
+  map.value.on('load', () => {
+    map.value!.setProjection({ type: 'globe' })
   })
+})
+
+onBeforeUnmount(() => {
+  map.value?.remove()
 })
 </script>
 
-<template>
-  <div id="map" class="map"></div>
-</template>
-
 <style scoped>
-#map {
-  width: 1000px;
-  height: 600px;
-}
+/* Falls MapLibre das Canvas vor deine UI legt, zwingen wir es nach hinten: */
+.maplibregl-canvas { z-index: 0 !important; }
 </style>
