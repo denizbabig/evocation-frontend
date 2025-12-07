@@ -10,26 +10,29 @@
       <!-- Gradient Overlay: Stärkerer Verlauf für bessere Lesbarkeit -->
       <div class="absolute inset-0 bg-gradient-to-b from-[#0e162c]/30 via-[#0e162c]/80 to-[#0e162c]" />
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0e162c]/60 to-[#0e162c]" />
-    </div>
+      <div
+        class="pointer-events-none absolute inset-0 z-10 opacity-40 mix-blend-screen"
+        style="background-image: linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px); background-size: 80px 80px;"
+      />
+</div>
 
-    <!-- HEADER / NAV (Absolut positioniert, damit der Main-Content sich am Screen orientiert) -->
-    <header class="absolute top-0 left-0 right-0 z-20 flex w-full items-center justify-between px-8 py-8 md:px-12">
-      <span class="text-3xl font-bold tracking-[0.2em] text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.6)] uppercase">
+    <div class="pointer-events-none absolute top-12 left-0 right-0 z-30 flex justify-center">
+      <span class="ml-[0.2em] text-7xl font-bold tracking-[0.2em] text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.6)] uppercase text-center">
         Evocation
       </span>
+    </div>
 
-      <nav class="hidden items-center gap-5 text-base font-medium md:flex">
-        <AppButton to="/features" variant="nav" size="sm" class="min-w-[80px]">
-          <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Features</span>
-        </AppButton>
-        <AppButton to="/about" variant="nav" size="sm" class="min-w-[70px]">
-          <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Über uns</span>
-        </AppButton>
-        <AppButton to="/login" variant="nav" size="sm" class="min-w-[60px]">
-          <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Login</span>
-        </AppButton>
-      </nav>
-    </header>
+    <nav class="absolute top-8 right-8 z-30 hidden items-center gap-5 text-base font-medium md:flex">
+      <AppButton to="/features" variant="nav" size="sm" class="min-w-[80px]">
+        <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Features</span>
+      </AppButton>
+      <AppButton to="/about" variant="nav" size="sm" class="min-w-[70px]">
+        <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Über uns</span>
+      </AppButton>
+      <AppButton to="/login" variant="nav" size="sm" class="min-w-[60px]">
+        <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Login</span>
+      </AppButton>
+    </nav>
 
     <!-- MAIN CONTENT (HERO) - Flexbox zentriert dies absolut perfekt in der Mitte -->
     <main class="relative z-10 flex flex-grow flex-col items-center justify-center px-6 text-center">
@@ -89,8 +92,4 @@
 <script setup lang="ts">
 import MapView from '@/components/MapView.vue'
 import AppButton from '@/components/AppButton.vue'
-
-defineOptions({
-  name: 'HomePageView'
-})
 </script>
