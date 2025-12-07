@@ -22,7 +22,12 @@
       </span>
     </div>
 
+    <div class="absolute top-8 left-8 z-30">
+      <ThemeToggle />
+    </div>
+
     <nav class="absolute top-8 right-8 z-30 hidden items-center gap-5 text-base font-medium md:flex">
+
       <AppButton to="/features" variant="nav" size="sm" class="min-w-[80px]">
         <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Features</span>
       </AppButton>
@@ -63,6 +68,7 @@
         <!-- Buttons Area -->
         <div class="flex flex-col items-center justify-center gap-8 sm:flex-row">
 
+
           <!-- Primary Button (Sign Up) -->
           <AppButton to="/map" variant="primary" size="lg">
             <!-- Anwendung des Farbverlaufs auf den Text -->
@@ -84,6 +90,25 @@
           </AppButton>
         </div>
 
+        <div class="mt-20 w-full max-w-lg">
+          <BaseCard>
+            <h3 class="text-3xl font-bold tracking-tight mb-4 bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+              Dein nächster <br> Abenteuerort wartet!
+            </h3>
+            <p class="text-gray-300 mb-6">
+              Willkommen zurück! Deine letzte Markierung war "Alter Leuchtturm, Westerhever".
+              Erstelle jetzt eine neue Erinnerung oder entdecke die Geschichten anderer Nutzer.
+            </p>
+            <div class="flex flex-col gap-4">
+                <AppButton to="/map" variant="primary" size="sm">
+                    <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Neue Erinnerung hinzufügen</span>
+                </AppButton>
+                <AppButton to="/map" variant="primary" size="sm">
+                    <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Alle Markierungen ansehen</span>
+                </AppButton>
+            </div>
+          </BaseCard>
+        </div>
       </div>
     </main>
   </div>
@@ -92,4 +117,9 @@
 <script setup lang="ts">
 import MapView from '@/components/MapView.vue'
 import AppButton from '@/components/AppButton.vue'
+import BaseCard from '@/components/BaseCard.vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
+
+defineOptions({ name: 'HomePageView' })
 </script>
+
