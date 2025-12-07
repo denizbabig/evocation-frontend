@@ -4,7 +4,11 @@
     :to="to"
     :href="href"
     class="group relative inline-flex items-center justify-center overflow-hidden rounded-full transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
-    :class="[variantClasses[variant], sizeClasses[size]]"
+    :class="[
+      variantClasses[variant],
+      sizeClasses[size],
+      disabled ? 'cursor-not-allowed opacity-70 pointer-events-none' : 'cursor-pointer'
+      ]"
   >
     <slot />
   </component>
@@ -19,11 +23,13 @@ interface Props {
   href?: string
   variant?: 'primary' | 'secondary' | 'nav'
   size?: 'lg' | 'md' | 'sm'
+  disabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'primary',
-  size: 'md'
+  size: 'md',
+  disabled: false
 })
 
 const tag = computed(() => {
