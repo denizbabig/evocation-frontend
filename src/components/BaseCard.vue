@@ -1,12 +1,24 @@
-<script setup lang="ts">
-</script>
-
 <template>
   <div
-    class="w-full max-w-xl min-h-[500px] rounded-3xl bg-white text-black px-10 py-12 shadow-2xl border-2 border-blue-400/70"
+    class="w-full max-w-xl rounded-3xl p-8 shadow-2xl transition-all duration-300"
+    :class="[
+      // Hält das dunkle, transparente Design des Secondary Buttons
+      'border-3 border-white/30 bg-white/5 text-white backdrop-blur-md',
+      // Fügt einen dezenten, dunklen Schatten hinzu, der zur Ästhetik passt
+      'shadow-purple-900/50',
+      // Optional: Ein leichter Hover-Effekt wie beim Button
+      'hover:border-white/50 hover:bg-white/10'
+    ]"
   >
     <slot />
   </div>
 </template>
 
-<style scoped></style>
+<script setup lang="ts">
+// Zusätzliche Props (z.B. variant oder size) können hier später hinzugefügt werden,
+// falls du verschiedene Kartentypen benötigst.
+</script>
+
+<style scoped>
+/* Hier können spezifische, nur für diese Komponente geltende Styles hinzugefügt werden */
+</style>
