@@ -1,8 +1,6 @@
 @import "tailwindcss";
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
 
-@theme {
+:root {
   --color-brand-50:  #29353C;
   --color-brand-100: #44576D;
   --color-brand-200: #768A97;
@@ -20,12 +18,11 @@
   --color-green-800: #C9DFF2;
   --color-green-900: #96B9D9;
   --color-green-1000: #00BCD4;
-
 }
 
 #app {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 #map {
@@ -37,11 +34,11 @@
 
 a {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
+  color: rgb(224, 224, 224);
   transition: 0.4s;
-  padding: 3px;
+  padding: 10px;
 }
 
 a:hover {
-  background-color: hsla(160, 100%, 37%, 0.2);
+  box-shadow: inset 0 0 0 2px currentColor;
 }
