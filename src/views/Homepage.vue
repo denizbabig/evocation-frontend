@@ -16,23 +16,11 @@
       />
 </div>
 
-    <div
-  class="pointer-events-none absolute left-1/2 -translate-x-1/2 z-30
-         top-20 sm:top-16 md:top-12"
-  aria-hidden="true"
->
-  <span
-    class="
-      block text-center uppercase text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.6)]
-      text-[12vw] xs:text-[10vw] sm:text-5xl md:text-7xl
-      tracking-[0.08em] sm:tracking-[0.14em] md:tracking-[0.2em]
-      md:ml-[0.2em]
-      whitespace-nowrap
-    "
-  >
-    Evocation
-  </span>
-</div>
+    <div class="pointer-events-none absolute top-12 left-0 right-0 z-30 flex hidden md:flex justify-center">
+      <span class="ml-[0.2em] text-7xl font-bold tracking-[0.2em] text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.6)] uppercase text-center">
+        Evocation
+      </span>
+    </div>
 
     <nav class="absolute top-8 right-8 z-30 hidden items-center gap-5 text-base font-medium md:flex">
       <AppButton to="/features" variant="nav" size="sm" class="min-w-[80px]">
@@ -47,7 +35,7 @@
     </nav>
 
     <!-- MAIN CONTENT (HERO) - Flexbox zentriert dies absolut perfekt in der Mitte -->
-    <main class="relative z-10 flex flex-grow flex-col items-center justify-center px-6 text-center pt-16 sm:pt-0">
+    <main class="relative z-10 flex flex-grow flex-col items-center justify-center px-6 text-center">
 
       <div class="flex w-full max-w-5xl flex-col items-center gap-4 text-center">
 
