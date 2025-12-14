@@ -3,9 +3,7 @@
     class="w-full max-w-xl rounded-3xl p-8 shadow-2xl transition-all duration-300"
     :class="[
       // Hält das dunkle, transparente Design des Secondary Buttons
-      'border-3 border-white/30 bg-white/5 text-white backdrop-blur-md',
-      // Fügt einen dezenten, dunklen Schatten hinzu, der zur Ästhetik passt
-      'shadow-purple-900/50',
+      'border-3 border-white/30 bg-white/1 text-white backdrop-blur-md shadow-purple-900/50',
       // Optional: Ein leichter Hover-Effekt wie beim Button
       'hover:border-white/50 hover:bg-white/10'
     ]"
