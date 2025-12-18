@@ -9,10 +9,9 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import ProfileView from '@/views/ProfileView.vue'
-import CloudinaryTestView from '@/views/cloudinaryTestView.vue'
 import LoginCallbackView from '@/views/LoginCallbackView.vue'
 import sharedView from '@/views/sharedView.vue'
-import DemoUploader from '@/views/DemoUploader.vue'
+
 import DemoMapView from '@/views/DemoMapView.vue'
 
 import { oktaAuth, loginRedirect } from '@/lib/oktaAuth'
@@ -38,10 +37,10 @@ const router = createRouter({
     // MapView (protected)
     { path: '/mapview', name: 'mapview', component: () => import('@/views/MapView.vue'), meta: { requiresAuth: true } },
 
-    // Dev/Test
-    { path: '/testview', name: 'testview', component: CloudinaryTestView },
+
+
     { path: '/shared/:code', name: 'shared', component: sharedView },
-    { path: '/demouploader', name: 'demouploader', component: DemoUploader },
+
     { path: '/demo', name: 'demomap', component: DemoMapView },
 
   ],
@@ -53,7 +52,7 @@ router.beforeEach(async (to) => {
   const authed = await oktaAuth.isAuthenticated()
   if (authed) return true
 
-  // ✅ statt Hosted-Redirect: embedded Login-View öffnen
+  //  statt Hosted-Redirect: embedded Login-View öffnen
   return {
     name: 'login',
     query: { from: to.fullPath },
