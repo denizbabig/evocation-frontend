@@ -120,7 +120,7 @@ export const useMarkerStore = defineStore('marker', {
       this.error = null
 
       try {
-        const data = await apiFetch('/markers') // <-- Bearer kommt automatisch mit
+        const data = await apiFetch('markers') // <-- Bearer kommt automatisch mit
         this.markers = Array.isArray(data) ? data.map(normalizeIncoming) : []
         this.lastLoadedAt = Date.now()
       } catch (e: any) {
