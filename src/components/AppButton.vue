@@ -48,7 +48,7 @@ const bindProps = computed(() => {
 
 const variantClasses: Record<NonNullable<Props['variant']>, string> = {
   primary:
-    'bg-white text-[#5a2fa3] border-2 border-black/40 shadow-lg shadow-purple-900/30 hover:scale-105 hover:shadow-[0_0_50px_-10px_rgba(255,255,255,0.6)]',
+    'bg-white text-[#5a2fa3] border-2 border-gray shadow-lg shadow-purple-900/30 hover:scale-105 hover:shadow-[0_0_50px_-10px_rgba(255,255,255,0.6)]',
   secondary:
     'border-2 border-white/30 bg-white/5 text-white backdrop-blur-md hover:border-white hover:bg-white/10 hover:scale-105',
   nav:
