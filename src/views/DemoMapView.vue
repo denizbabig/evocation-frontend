@@ -224,7 +224,7 @@ async function loadDemoMarkers() {
   loading.value = true
 
   try {
-    const res = await fetch(`${API_BASE}/demo/markers`, {
+    const res = await fetch(`${API_BASE}/api/demo/markers`, {
       method: 'GET',
       credentials: 'omit',
       headers: { 'Accept': 'application/json' },
