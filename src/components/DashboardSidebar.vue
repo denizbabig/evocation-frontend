@@ -23,7 +23,7 @@
     tabindex="0"
     @keydown.esc="$emit('close')"
   >
-    <!-- Background accents like homepage -->
+    <!-- grid -->
     <div class="pointer-events-none absolute inset-0 rounded-2xl">
       <div class="absolute inset-0 bg-gradient-to-b from-[#0e162c]/10 via-[#0e162c]/40 to-[#0e162c]/80" />
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(88,28,135,0.22),_rgba(14,22,44,0.55),_rgba(14,22,44,0.95))]" />
@@ -34,7 +34,7 @@
     </div>
 
     <div class="relative flex h-full flex-col px-6 py-6">
-      <!-- Close -->
+      <!-- schließen -->
       <button
         @click="$emit('close')"
         class="absolute left-5 top-5 z-50 rounded-lg p-2 text-gray-300/80
@@ -62,7 +62,7 @@
 
       <!-- Nav -->
       <nav class="mt-8 flex-1 space-y-4 overflow-y-auto pb-2 pr-2 pl-2 pt-2 sidebar-scroll">
-        <!-- Quick actions (public) -->
+        <!-- quick ones für ohne login -->
         <div class="space-y-3">
           <AppButton
             v-if="!isAuthenticated"
@@ -104,7 +104,7 @@
 
         <div class="my-5 h-px bg-white/10" />
 
-        <!-- App (protected) -->
+        <!-- App (login nötig) -->
         <div class="text-center text-[11px] tracking-[0.22em] uppercase text-gray-400/90">
           App
         </div>
@@ -220,9 +220,9 @@
         </div>
       </nav>
 
-      <!-- Auth actions -->
+      <!-- Auth Aktionen -->
       <div class="mt-6 border-t border-white/10 pt-5 space-y-3">
-        <!-- Show login/register if NOT authed -->
+        <!-- login /register wenn nicht auth -->
         <div v-if="!isAuthenticated" class="space-y-3">
           <AppButton
             :to="routes.login"
@@ -364,18 +364,15 @@ async function onLogout() {
 .fade-enter-from,
 .fade-leave-to { opacity: 0; }
 
-/* ✅ kill AppButton hover-scale ONLY inside sidebar (sonst overlap/komisch) */
 .sidebar-btn { transform: none !important; }
 .sidebar-btn:hover { transform: none !important; }
 
-/* active = bisschen glow, hero-like */
 .sidebar-link--active {
   border-color: rgba(255,255,255,0.40) !important;
   background: rgba(255,255,255,0.10) !important;
   box-shadow: 0 0 0 2px rgba(217,70,239,0.18), 0 0 28px rgba(217,70,239,0.10);
 }
 
-/* small badge */
 .badge {
   font-size: 10px;
   padding: 2px 10px;
