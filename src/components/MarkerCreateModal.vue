@@ -231,7 +231,7 @@
     <input
       ref="fileInputEl"
       type="file"
-      accept="image/*"
+      accept="image/*,video/*"
       multiple
       class="hidden"
       @change="onPickFiles"
@@ -262,13 +262,26 @@
   </div>
 
   <!-- MIDDLE: Preview Grid -->
-  <div v-if="pendingImages.length" class="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+  <div v-if="pendingMedia.length" class="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
     <div
-      v-for="p in pendingImages"
+      v-for="p in pendingMedia"
       :key="p.id"
       class="relative rounded-xl overflow-hidden border border-white/10 bg-white/5"
     >
-      <img :src="p.previewUrl" class="h-28 w-full object-cover" />
+      <img
+        v-if="p.kind === 'image'"
+        :src="p.previewUrl"
+        class="h-28 w-full object-cover"
+      />
+
+      <video
+        v-else
+        :src="p.previewUrl"
+        class="h-28 w-full object-cover"
+        muted
+        playsinline
+        controls
+      />
 
       <!-- Status -->
       <div class="absolute top-2 left-2 text-[11px] px-2 py-1 rounded bg-black/60 border border-white/10">
@@ -303,7 +316,7 @@
     </div>
   </div>
 
-  <p v-if="pendingImages.length && !allUploaded" class="mt-2 text-xs text-gray-400">
+  <p v-if="pendingMedia.length && !allUploaded" class="mt-2 text-xs text-gray-400">
     Hinweis: Erst „Bilder hochladen“, dann „Speichern“.
   </p>
 
@@ -353,7 +366,7 @@
       <AppButton
         type="submit"
         variant="primary"
-        :disabled="saving || !isValid || (pendingImages.length > 0 && !allUploaded)"
+        :disabled="saving || !isValid || (pendingMedia.length > 0 && !allUploaded)"
       >
         <span class="bg-gradient-to-r from-purple-600 via-fuchsia-400 to-indigo-600 bg-clip-text text-transparent">
           {{ saving ? 'Speichern…' : 'Speichern' }}
@@ -389,17 +402,18 @@ import { primaryLabel } from '@/lib/reverseGeocode'
 
 type CategoryOption = { id: number; label: string }
 
-type PendingImage = {
+type PendingMedia = {
   id: string
   file: File
   previewUrl: string
+  kind: 'image' | 'video'
   uploading: boolean
   uploaded?: ImageAsset
   error?: string | null
   isCover: boolean
 }
 
-const pendingImages = ref<PendingImage[]>([])
+const pendingMedia = ref<PendingMedia[]>([])
 const uploadError = ref<string | null>(null)
 const fileInputEl = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
@@ -409,8 +423,8 @@ function uid() {
 }
 
 function clearPending() {
-  for (const p of pendingImages.value) URL.revokeObjectURL(p.previewUrl)
-  pendingImages.value = []
+  for (const p of pendingMedia.value) URL.revokeObjectURL(p.previewUrl)
+  pendingMedia.value = []
   uploadError.value = null
 }
 
@@ -522,50 +536,50 @@ function onPickFiles(e: Event) {
 
   for (const file of files) {
     const previewUrl = URL.createObjectURL(file)
-    pendingImages.value.push({
+    pendingMedia.value.push({
       id: uid(),
       file,
       previewUrl,
       uploading: false,
       uploaded: undefined,
       error: null,
-      isCover: pendingImages.value.length === 0, // erstes = cover
+      isCover: pendingMedia.value.length === 0, // erstes = cover
     })
   }
   input.value = ''
 }
 
 function removePending(id: string) {
-  const idx = pendingImages.value.findIndex((p) => p.id === id)
+  const idx = pendingMedia.value.findIndex((p) => p.id === id)
   if (idx === -1) return
-  URL.revokeObjectURL(pendingImages.value[idx].previewUrl)
-  pendingImages.value.splice(idx, 1)
+  URL.revokeObjectURL(pendingMedia.value[idx].previewUrl)
+  pendingMedia.value.splice(idx, 1)
 
-  if (!pendingImages.value.some((p) => p.isCover) && pendingImages.value.length) {
-    pendingImages.value[0].isCover = true
+  if (!pendingMedia.value.some((p) => p.isCover) && pendingMedia.value.length) {
+    pendingMedia.value[0].isCover = true
   }
 }
 
 function setCover(id: string) {
-  for (const p of pendingImages.value) p.isCover = p.id === id
+  for (const p of pendingMedia.value) p.isCover = p.id === id
 }
 
 const canUpload = computed(
   () =>
-    pendingImages.value.length > 0 &&
-    pendingImages.value.some((p) => !p.uploaded) &&
-    !pendingImages.value.some((p) => p.uploading)
+    pendingMedia.value.length > 0 &&
+    pendingMedia.value.some((p) => !p.uploaded) &&
+    !pendingMedia.value.some((p) => p.uploading)
 )
 
 const allUploaded = computed(
-  () => pendingImages.value.length > 0 && pendingImages.value.every((p) => !!p.uploaded)
+  () => pendingMedia.value.length > 0 && pendingMedia.value.every((p) => !!p.uploaded)
 )
 
 async function uploadAll() {
   uploadError.value = null
 
-  const cover = pendingImages.value.find((p) => p.isCover)
-  const ordered = [...(cover ? [cover] : []), ...pendingImages.value.filter((p) => p !== cover)]
+  const cover = pendingMedia.value.find((p) => p.isCover)
+  const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter((p) => p !== cover)]
 
   // falls schon hochgeladen: order korrigieren
   for (let i = 0; i < ordered.length; i++) {
@@ -602,7 +616,7 @@ function close() {
 function onSubmit() {
   if (!isValid.value) return
 
-  if (pendingImages.value.length && !allUploaded.value) {
+  if (pendingMedia.value.length && !allUploaded.value) {
     uploadError.value = 'Bitte erst „Bilder hochladen“ klicken (oder Bilder entfernen).'
     return
   }
@@ -617,19 +631,49 @@ function onSubmit() {
 }
 
 function addFiles(files: File[]) {
-  const imgs = files.filter(f => f.type?.startsWith('image/'))
-  if (!imgs.length) return
+  const accepted = files.filter(
+    (f) => f.type?.startsWith('image/') || f.type?.startsWith('video/')
+  )
+  if (!accepted.length) return
 
-  for (const file of imgs) {
+  const VIDEO_LIMIT = 2
+
+  // wie viele Videos sind schon drin?
+  const existingVideoCount = pendingMedia.value.filter((p) => p.kind === 'video').length
+
+  // wie viele Videos kommen neu rein?
+  const incomingVideos = accepted.filter((f) => f.type?.startsWith('video/'))
+
+  // Wenn wir über das Limit kommen würden -> Fehlermeldung + nur bis Limit hinzufügen
+  const maxVideosWeCanAdd = Math.max(0, VIDEO_LIMIT - existingVideoCount)
+  if (incomingVideos.length > maxVideosWeCanAdd) {
+    uploadError.value = `Du kannst aktuell maximal ${VIDEO_LIMIT} Videos pro Marker hinzufügen.`
+  }
+
+  let videosAdded = 0
+
+  for (const file of accepted) {
+    const kind: 'image' | 'video' = file.type?.startsWith('video/') ? 'video' : 'image'
+
+    // Video-Limit enforce
+    if (kind === 'video') {
+      if (existingVideoCount + videosAdded >= VIDEO_LIMIT) {
+        // skip this video
+        continue
+      }
+      videosAdded++
+    }
+
     const previewUrl = URL.createObjectURL(file)
-    pendingImages.value.push({
+    pendingMedia.value.push({
       id: uid(),
       file,
       previewUrl,
+      kind,
       uploading: false,
       uploaded: undefined,
       error: null,
-      isCover: pendingImages.value.length === 0, // erstes = cover
+      isCover: pendingMedia.value.length === 0,
     })
   }
 }

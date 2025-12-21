@@ -257,7 +257,7 @@
                           <input
                             ref="fileInputEl"
                             type="file"
-                            accept="image/*"
+                            accept="image/*,video/*"
                             multiple
                             class="hidden"
                             @change="onPickFiles"
@@ -295,7 +295,20 @@
                           :key="p.id"
                           class="relative rounded-xl overflow-hidden border border-white/10 bg-white/5"
                         >
-                          <img :src="p.previewUrl" class="h-28 w-full object-cover" />
+                          <img
+                            v-if="p.kind === 'image'"
+                            :src="p.previewUrl"
+                            class="h-28 w-full object-cover"
+                          />
+
+                          <video
+                            v-else
+                            :src="p.previewUrl"
+                            class="h-28 w-full object-cover"
+                            muted
+                            playsinline
+                            controls
+                          />
 
                           <div class="absolute top-2 left-2 text-[11px] px-2 py-1 rounded bg-black/60 border border-white/10">
                             <span v-if="p.uploading">⚙️</span>
@@ -412,17 +425,18 @@ import type { Visibility } from '@/types/Marker'
 
 type CategoryOption = { id: number; label: string }
 
-type PendingImage = {
+type PendingMedia = {
   id: string
   file: File
   previewUrl: string
+  kind: 'image' | 'video'
   uploading: boolean
   uploaded?: ImageAsset
   error?: string | null
   isCover: boolean
 }
 
-const pendingImages = ref<PendingImage[]>([])
+const pendingImages = ref<PendingMedia[]>([])
 const uploadError = ref<string | null>(null)
 const fileInputEl = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
@@ -519,15 +533,45 @@ function onPickFiles(e: Event) {
 }
 
 function addFiles(files: File[]) {
-  const imgs = files.filter((f) => f.type?.startsWith('image/'))
-  if (!imgs.length) return
+  const accepted = files.filter(
+    (f) => f.type?.startsWith('image/') || f.type?.startsWith('video/')
+  )
+  if (!accepted.length) return
 
-  for (const file of imgs) {
+  const VIDEO_LIMIT = 2
+
+  // wie viele Videos sind schon drin?
+  const existingVideoCount = pendingImages.value.filter((p) => p.kind === 'video').length
+
+  // wie viele Videos kommen neu rein?
+  const incomingVideos = accepted.filter((f) => f.type?.startsWith('video/'))
+
+  // Wenn wir über das Limit kommen würden -> Fehlermeldung + nur bis Limit hinzufügen
+  const maxVideosWeCanAdd = Math.max(0, VIDEO_LIMIT - existingVideoCount)
+  if (incomingVideos.length > maxVideosWeCanAdd) {
+    uploadError.value = `Du kannst aktuell maximal ${VIDEO_LIMIT} Videos pro Marker hinzufügen.`
+  }
+
+  let videosAdded = 0
+
+  for (const file of accepted) {
+    const kind: 'image' | 'video' = file.type?.startsWith('video/') ? 'video' : 'image'
+
+    // Video-Limit enforce
+    if (kind === 'video') {
+      if (existingVideoCount + videosAdded >= VIDEO_LIMIT) {
+        // skip this video
+        continue
+      }
+      videosAdded++
+    }
+
     const previewUrl = URL.createObjectURL(file)
     pendingImages.value.push({
       id: uid(),
       file,
       previewUrl,
+      kind,
       uploading: false,
       uploaded: undefined,
       error: null,

@@ -46,7 +46,7 @@ export async function logout() {
 }
 
 export async function fetchMe() {
-  const { data } = await api.get('/auth/me')
+  const {data} = await api.get('/auth/me')
   return data
 }
 

@@ -42,3 +42,77 @@ a {
 a:hover {
   box-shadow: inset 0 0 0 2px currentColor;
 }
+
+/* Evocation-Theme Variablen */
+.dp__theme_dark{
+  --dp-background-color:#11182e;
+  --dp-text-color:#ffffff;
+  --dp-primary-color:#d946ef;               /* fuchsia-500 */
+  --dp-primary-text-color:#ffffff;
+  --dp-hover-color:rgba(240,171,252,0.12);  /* zarte hover-fläche */
+  --dp-menu-border-color:rgba(255,255,255,0.12);
+  --dp-border-color:rgba(255,255,255,0.12);
+  --dp-border-radius:14px;
+  --dp-cell-size:36px;
+}
+
+/* Popup-Container */
+.evoc-dp-menu{
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 12px 50px -10px rgba(12,9,30,0.65);
+  border-radius: 14px !important;
+}
+
+/* Kopfzeile (Monat/Jahr + Wochentage) */
+.dp__calendar_header{
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dp__calendar_header_item{
+  color: #a1a1aa;            /* zink-400 */
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+/* Tageszellen – Baseline */
+.evoc-dp-cell .dp__cell_inner{
+  border-radius: 9999px !important;
+  transition: transform .15s ease, background-color .15s ease, box-shadow .15s ease;
+  color: #e5e7eb; /* gray-200 */
+}
+.evoc-dp-cell .dp__cell_inner:hover{
+  background: rgba(240,171,252,0.12); /* fuchsia-300/12% */
+  transform: scale(1.03);
+}
+
+/* Heute-Markierung: feiner Ring in Gradient */
+.dp__today .dp__cell_inner{
+  box-shadow: 0 0 0 2px rgba(217,70,239,0.35) inset; /* fuchsia-500 */
+}
+
+/* Ausgewähltes Datum: voller Evocation-Gradient */
+.dp__active_date .dp__cell_inner{
+  background: linear-gradient(90deg,#a78bfa 0%, #f0abfc 50%, #60a5fa 100%); /* purple→fuchsia→indigo */
+  color: #0b1023;            /* dunkler Textkontrast im Gradient */
+  font-weight: 800;
+  box-shadow:
+    0 6px 18px -6px rgba(96,165,250,0.35),   /* blaues glow */
+    0 0 0 2px rgba(255,255,255,0.12) inset;  /* feiner innerer Rand */
+  transform: scale(1.06);
+}
+
+/* Disabled/anderer Monat dezenter */
+.dp__cell_offset,.dp__cell_disabled{
+  opacity: .35;
+}
+
+/* Navigation-Pfeile etwas heller */
+.dp__btn{
+  color:#e5e7eb;
+}
+.dp__btn:hover{
+  background: rgba(240,171,252,0.10);
+  border-color: rgba(255,255,255,0.12);
+}

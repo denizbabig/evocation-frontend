@@ -1,16 +1,16 @@
-<!-- src/views/DashboardView.vue -->
-<template>
+<<template>
   <div class="relative flex min-h-[100dvh] w-full flex-col bg-[#0e162c] text-white font-sans overflow-x-hidden">
 
     <!-- Hintergrund: Map als softes Hero -->
     <div class="fixed inset-0 z-0 pointer-events-none">
       <div
-      class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-55 blur-sm brightness-75"
-      :style="{ backgroundImage: `url(${gemini2})` }"
-    />
-    <div class="absolute inset-0 bg-gradient-to-b from-[#0e162c]/30 via-[#0e162c]/80 to-[#0e162c]" />
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0e162c]/60 to-[#0e162c]" />
-  </div>
+        class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-55 blur-sm brightness-75"
+        :style="{ backgroundImage: `url(${gemini2})` }"
+      />
+      <div class="absolute inset-0 bg-gradient-to-b from-[#0e162c]/30 via-[#0e162c]/80 to-[#0e162c]" />
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0e162c]/60 to-[#0e162c]" />
+    </div>
+
     <!-- leises Grid -->
     <div
       class="pointer-events-none absolute inset-0 z-10 opacity-40 mix-blend-screen"
@@ -51,7 +51,6 @@
           Durchsuche deine Orte oder stöbere entspannt in deiner Sammlung.
         </p>
 
-        <!-- 🔎 GeoSearchBox statt einfachem Input -->
         <div class="relative w-full max-w-2xl mx-auto">
           <GeoSearchBox
             v-model="searchQuery"
@@ -74,155 +73,159 @@
           </div>
         </div>
 
-        <!-- Loading / Empty states -->
         <!-- Loading -->
-<div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-  <div
-    v-for="i in 8"
-    :key="i"
-    class="h-[300px] rounded-3xl bg-white/5 border border-white/10 animate-pulse"
-  />
-</div>
+        <div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div
+            v-for="i in 8"
+            :key="i"
+            class="h-[300px] rounded-3xl bg-white/5 border border-white/10 animate-pulse"
+          />
+        </div>
 
-<!-- Not loading: Grid immer -->
-<div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Grid -->
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
+          <!-- Marker Cards -->
+          <div
+            v-for="m in filteredMarkers"
+            :key="m.id"
+            class="group relative h-full cursor-pointer rounded-3xl p-[1px] transition-all duration-300 hover:-translate-y-1"
+            @click="openDetail(m.id)"
+          >
+            <!-- Gradient Border + Glow -->
+            <div
+              class="absolute inset-0 rounded-3xl opacity-0 blur-[12px] transition-opacity duration-300 group-hover:opacity-70"
+              style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
+            />
+            <div
+              class="absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
+            />
 
-  <!-- Marker Cards (nur wenn vorhanden) -->
-  <!-- Marker Cards (Full-Image Card like Prototype) -->
-<div
-  v-for="m in filteredMarkers"
-  :key="m.id"
-  class="group relative h-full cursor-pointer rounded-3xl p-[1px] transition-all duration-300 hover:-translate-y-1"
-  @click="openDetail(m.id)"
->
-  <!-- Gradient Border + Glow (nur beim Hover sichtbar) -->
-  <div
-    class="absolute inset-0 rounded-3xl opacity-0 blur-[12px] transition-opacity duration-300 group-hover:opacity-70"
-    style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
-  />
-  <div
-    class="absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-    style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
-  />
+            <!-- Card Surface -->
+            <div
+              class="relative overflow-hidden rounded-3xl border border-white/10 bg-[#141c34]/60 backdrop-blur-md
+                     h-[360px] min-h-[300px] transition-all duration-300
+                     group-hover:shadow-2xl group-hover:shadow-fuchsia-900/30"
+            >
+              <!-- Cover media (ohne <template>-Nesting) -->
+              <video
+                v-if="coverCardSrc(m) && isVideoUrl(coverCardSrc(m))"
+                :src="coverCardSrc(m)!"
+                class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                muted
+                playsinline
+                preload="metadata"
+                loop
+              />
 
-  <!-- Card Surface -->
-  <div
-    class="relative overflow-hidden rounded-3xl border border-white/10 bg-[#141c34]/60 backdrop-blur-md
-           h-[360px] min-h-[300px] transition-all duration-300
-           group-hover:shadow-2xl group-hover:shadow-fuchsia-900/30"
-  >
-    <!-- Full image -->
-    <img
-      v-if="coverCard(m)"
-      :src="coverCard(m)!"
-      alt=""
-      class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-      loading="lazy"
-    />
-    <div
-      v-else
-      class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent"
-    />
+              <img
+                v-else-if="coverCardSrc(m)"
+                :src="coverCardSrc(m)!"
+                alt=""
+                class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                loading="lazy"
+              />
 
-    <!-- Subtile „Tiefe“ + Lesbarkeit -->
-    <div class="absolute inset-0 bg-black/15" />
-    <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+              <div
+                v-else
+                class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent"
+              />
 
-    <!-- Badge oben rechts -->
-    <div class="absolute right-4 top-4 z-20">
-      <span
-  class="rounded-full px-3 py-1 text-xs font-semibold tracking-wide text-white/95
-         bg-white/10 border border-white/15 backdrop-blur-md
-         group-hover:bg-white/12 group-hover:border-white/25 transition"
->
-  {{ m.dateAgoText }}
-</span>
-    </div>
+              <!-- Tiefe + Lesbarkeit -->
+              <div class="absolute inset-0 bg-black/15" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
-    <!-- Bottom-left: Title + Location -->
-    <div class="absolute left-0 bottom-0 z-20 w-full p-5">
-      <div
-        class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm transition-all duration-300
-               group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
-               group-hover:bg-clip-text group-hover:text-transparent"
-      >
-        {{ m.title || 'Ohne Titel' }}
-      </div>
+              <!-- Badge -->
+              <div class="absolute right-4 top-4 z-20">
+                <span
+                  class="rounded-full px-3 py-1 text-xs font-semibold tracking-wide text-white/95
+                         bg-white/10 border border-white/15 backdrop-blur-md
+                         group-hover:bg-white/12 group-hover:border-white/25 transition"
+                >
+                  {{ m.dateAgoText }}
+                </span>
+              </div>
 
-      <div class="mt-2 flex items-center gap-2 text-sm text-white/80">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
-        </svg>
+              <!-- Bottom-left -->
+              <div class="absolute left-0 bottom-0 z-20 w-full p-5">
+                <div
+                  class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm transition-all duration-300
+                         group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
+                         group-hover:bg-clip-text group-hover:text-transparent"
+                >
+                  {{ m.title || 'Ohne Titel' }}
+                </div>
 
-        <span
-          class="truncate transition-all duration-300
-                 group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
-                 group-hover:bg-clip-text group-hover:text-transparent"
-        >
-          {{ markerLocation(m) }}
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
+                <div class="mt-2 flex items-center gap-2 text-sm text-white/80">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
+                  </svg>
 
-  <!-- CTA: immer -->
-  <button
-    @click="createOpen = true"
-    class="group relative flex flex-col items-center justify-center h-full min-h-[300px] rounded-3xl border-2 border-dashed border-white/20 hover:border-transparent bg-white/5 hover:bg-white/10 hover:scale-105 transition-all duration-300"
-  >
-    <!-- dein Gradient-Dashed-Rahmen -->
-    <svg
-      class="absolute inset-0 w-full h-full rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="evoc-grad-dashed" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#a78bfa"/><stop offset="50%" stop-color="#f0abfc"/><stop offset="100%" stop-color="#60a5fa"/>
-        </linearGradient>
-      </defs>
-      <rect
-        x="1" y="1"
-        width="calc(100% - 2px)"
-        height="calc(100% - 2px)"
-        rx="24" ry="24"
-        fill="none"
-        stroke="url(#evoc-grad-dashed)"
-        stroke-width="2"
-        stroke-dasharray="6 6"
-        stroke-linecap="round"
-        vector-effect="non-scaling-stroke"
-      />
-    </svg>
+                  <span
+                    class="truncate transition-all duration-300
+                           group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
+                           group-hover:bg-clip-text group-hover:text-transparent"
+                  >
+                    {{ markerLocation(m) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    <!-- Plus -->
-    <svg xmlns="http://www.w3.org/2000/svg"
-         class="w-14 h-14 text-white opacity-90 group-hover:opacity-100 transition-opacity"
-         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-    </svg>
+          <!-- CTA -->
+          <button
+            @click="createOpen = true"
+            class="group relative flex flex-col items-center justify-center h-full min-h-[300px] rounded-3xl border-2 border-dashed border-white/20 hover:border-transparent bg-white/5 hover:bg-white/10 hover:scale-105 transition-all duration-300"
+          >
+            <svg
+              class="absolute inset-0 w-full h-full rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient id="evoc-grad-dashed" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#a78bfa"/><stop offset="50%" stop-color="#f0abfc"/><stop offset="100%" stop-color="#60a5fa"/>
+                </linearGradient>
+              </defs>
+              <rect
+                x="1" y="1"
+                width="calc(100% - 2px)"
+                height="calc(100% - 2px)"
+                rx="24" ry="24"
+                fill="none"
+                stroke="url(#evoc-grad-dashed)"
+                stroke-width="2"
+                stroke-dasharray="6 6"
+                stroke-linecap="round"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
 
-    <span class="mt-4 text-gray-400 group-hover:text-white font-semibold">
-      Neuen Marker hinzufügen
-    </span>
-  </button>
-</div>
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="w-14 h-14 text-white opacity-90 group-hover:opacity-100 transition-opacity"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+
+            <span class="mt-4 text-gray-400 group-hover:text-white font-semibold">
+              Neuen Marker hinzufügen
+            </span>
+          </button>
+        </div>
       </div>
     </main>
 
     <div v-if="filteredMarkers.length" class="flex justify-center">
-  <AppButton @click="shareModalOpen = true" variant="secondary">
-  <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-    Link für öffentliche Map erstellen
-  </span>
-</AppButton>
+      <AppButton @click="shareModalOpen = true" variant="secondary">
+        <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+          Link für öffentliche Map erstellen
+        </span>
+      </AppButton>
 
-<ShareLinkModal v-model="shareModalOpen" />
-</div>
-
-
+      <ShareLinkModal v-model="shareModalOpen" />
+    </div>
 
     <span class="relative z-20 w-full mt-auto py-6 text-center text-xs text-gray-500">
       &copy; 2025 Evocation Systems. All rights reserved.
@@ -239,48 +242,53 @@
         <div v-if="showCard" class="fixed inset-0 z-[1001] flex items-center justify-center p-4 pointer-events-none">
           <BaseCard class="relative bg-[#1a233e]/90 border border-fuchsia-600/50 shadow-2xl shadow-fuchsia-900/40 max-w-lg w-full pointer-events-auto backdrop-blur-md p-8 text-center">
             <button @click="showCard = false" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
             </button>
-            <h3 class="text-3xl font-bold tracking-tight mb-4 bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">Willkommen zurück!</h3>
-            <p class="text-gray-300 mb-6">Dein Dashboard wurde aktualisiert. Nutze die Suche, um deine Erinnerungen schneller zu finden.</p>
-            <div class="flex justify-center"><AppButton @click="showCard = false" variant="primary" size="md">Verstanden</AppButton></div>
+            <h3 class="text-3xl font-bold tracking-tight mb-4 bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+              Willkommen zurück!
+            </h3>
+            <p class="text-gray-300 mb-6">
+              Dein Dashboard wurde aktualisiert. Nutze die Suche, um deine Erinnerungen schneller zu finden.
+            </p>
+            <div class="flex justify-center">
+              <AppButton @click="showCard = false" variant="primary" size="md">Verstanden</AppButton>
+            </div>
           </BaseCard>
         </div>
       </Transition>
     </Teleport>
 
     <!-- Detail-Modal -->
-   <MarkerDetailModal
-  :open="detailOpen"
-  :marker="activeDetail"
-  :readonly="false"
-  :visibilitySaving="savingVisibility"
-  @close="detailOpen = false"
-  @open-on-map="handleOpenOnMap"
-  @edit="handleEdit"
-  @delete="handleDelete"
-  @set-visibility="onSetVisibility"
-/>
+    <MarkerStoryModal
+      :open="detailOpen"
+      :marker="activeDetail"
+      :readonly="false"
+      @close="detailOpen = false"
+      @open-on-map="handleOpenOnMap"
+      @edit="handleEdit"
+      @delete="handleDelete"
+    />
 
+    <!-- Create -->
     <MarkerCreateModal
       :open="createOpen"
       :categories="[{id:1,label:'Reise'},{id:2,label:'Essen'},{id:3,label:'Sightseeing'},{id:4,label:'Shopping'}]"
-      :saving="isLoading /* oder eigener saving-state */"
+      :saving="isLoading"
       @close="createOpen = false"
       @submit="saveCreatedMarker"
-      />>
-  </div>
+    />
 
-  <div v-if="shareLink" class="mt-5 text-center text-gray-400">
-  <span class="text-sm">Dein Share-Link:</span>
-  <div class="flex justify-center items-center gap-2">
-    <a :href="shareLink" target="_blank" class="text-fuchsia-300 hover:underline">{{ shareLink }}</a>
-    <AppButton @click="copyLink" variant="secondary" size="sm">
-      Copy Link
-    </AppButton>
+    <!-- Share link output -->
+    <div v-if="shareLink" class="mt-5 text-center text-gray-400">
+      <span class="text-sm">Dein Share-Link:</span>
+      <div class="flex justify-center items-center gap-2">
+        <a :href="shareLink" target="_blank" class="text-fuchsia-300 hover:underline">{{ shareLink }}</a>
+        <AppButton @click="copyLink" variant="secondary" size="sm">Copy Link</AppButton>
+      </div>
+    </div>
   </div>
-</div>
-
 </template>
 
 <script setup lang="ts">
@@ -306,6 +314,7 @@ import { reversePlaceName } from '@/lib/reverseGeocode'
 // Icons
 import { MapPinIcon, CameraIcon, GlobeEuropeAfricaIcon } from '@heroicons/vue/24/outline'
 import ShareLinkModal from '@/components/ShareModal.vue'
+import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
 
 const shareModalOpen = ref(false)
 defineOptions({ name: 'DashboardView' })
@@ -552,6 +561,29 @@ function daysAgoLabel(isoYmd?: string | null) {
   if (diffDays === 1) return 'vor 1 Tag'
   return `vor ${diffDays} Tagen`
 }
+
+function isVideoUrl(u?: string | null) {
+  if (!u) return false
+  const s = String(u).toLowerCase()
+  return (
+    s.includes('/video/upload/') ||
+    s.endsWith('.mp4') ||
+    s.endsWith('.mov') ||
+    s.endsWith('.webm') ||
+    s.endsWith('.ogg') ||
+    s.endsWith('.m4v') ||
+    s.endsWith('.mkv')
+  )
+}
+
+function coverCardSrc(m: any): string | null {
+  try {
+    return markerCover(m)?.card ?? null
+  } catch {
+    return null
+  }
+}
+
 
 </script>
 

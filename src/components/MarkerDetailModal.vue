@@ -111,12 +111,22 @@
                   @click="openLightbox"
                   aria-label="Bild vergrößern"
                 >
-                  <img
-                    v-if="displayImage"
-                    :src="displayImage"
-                    alt=""
-                    class="w-full h-full object-cover"
-                  />
+                  <template v-if="displaySrc">
+                    <video
+                      v-if="displayIsVideo"
+                      :src="displaySrc"
+                      class="evoc-video w-full h-full object-cover"
+                      controls
+                      playsinline
+                      preload="metadata"
+                    />
+                    <img
+                      v-else
+                      :src="displaySrc"
+                      alt=""
+                      class="w-full h-full object-cover"
+                    />
+                  </template>
                   <div v-else class="w-full h-full grid place-items-center text-gray-400">
                     <div class="w-16 h-16 rounded-xl bg-white/10 border border-white/10 grid place-items-center">🖼️</div>
                   </div>
@@ -197,7 +207,21 @@
           class="relative z-10 w-full h-full rounded-2xl overflow-hidden border bg-white/5"
           :class="i === activeIndex ? 'border-transparent' : 'border-white/10 hover:border-white/20'"
         >
-          <img :src="img.thumb" alt="" class="w-full h-full object-cover" />
+          <template v-if="isVideoUrl(img.thumb) || isVideoUrl(img.full)">
+            <video
+              :src="img.full"
+              class="w-full h-full object-cover"
+              muted
+              playsinline
+              preload="metadata"
+            />
+          </template>
+          <img
+            v-else
+            :src="img.thumb"
+            alt=""
+            class="w-full h-full object-cover"
+          />
           <div
             v-if="i === activeIndex"
             class="absolute inset-0 ring-2 ring-fuchsia-400/30"
@@ -263,9 +287,11 @@
         </div>
 
         <!-- Lightbox -->
+        <!-- Lightbox -->
+        <!-- Lightbox -->
         <Transition name="fade">
           <div
-            v-if="lightboxOpen && displayImage"
+            v-if="lightboxOpen && displaySrc"
             class="fixed inset-0 z-[1200] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
             @click="lightboxOpen = false"
           >
@@ -277,13 +303,26 @@
               </div>
 
               <div class="relative rounded-2xl overflow-hidden border border-white/10 bg-[#0b1228]/90">
-                <img :src="displayImage" class="w-full max-h-[80vh] object-contain bg-black/20" alt="" />
+                <video
+                  v-if="displayIsVideo"
+                  :src="displaySrc"
+                  class="w-full h-full object-contain bg-black/20"
+                  controls
+                  playsinline
+                  preload="metadata"
+                />
+                <img
+                  v-else
+                  :src="displaySrc"
+                  class="w-full max-h-[80vh] object-contain bg-black/20"
+                  alt=""
+                />
 
                 <div class="p-3 flex justify-end border-t border-white/10 bg-white/5">
                   <AppButton variant="secondary" size="md" type="button" @click="lightboxOpen = false">
-                    <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                      Schließen
-                    </span>
+            <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+              Schließen
+            </span>
                   </AppButton>
                 </div>
               </div>
@@ -341,10 +380,6 @@ const images = computed(() => normalizeMarkerImages(props.marker))
 const activeIndex = ref(0)
 watch(() => props.open, (o) => { if (o) activeIndex.value = 0 })
 
-const displayImage = computed(() =>
-  images.value[activeIndex.value]?.full ?? images.value[0]?.full ?? ''
-)
-
 const markerVisibility = computed<Visibility>(() => {
   const v = props.marker?.visibility
   if (v === 'PUBLIC' || v === 'PRIVATE') return v
@@ -388,7 +423,8 @@ function nextImage() {
 /** Lightbox */
 const lightboxOpen = ref(false)
 function openLightbox() {
-  if (!displayImage.value) return
+  if (!displaySrc.value) return
+  if (displayIsVideo.value) return // Video nicht in Lightbox (optional, aber empfohlen)
   lightboxOpen.value = true
 }
 
@@ -407,6 +443,23 @@ function onKey(e: KeyboardEvent) {
     if (e.key === 'ArrowRight') nextImage()
   }
 }
+function isVideoUrl(u?: string) {
+  if (!u) return false
+  const s = u.toLowerCase()
+  return (
+    s.includes('/video/upload/') ||
+    s.endsWith('.mp4') ||
+    s.endsWith('.mov') ||
+    s.endsWith('.webm') ||
+    s.endsWith('.ogg')
+  )
+}
+
+const activeItem = computed(() => images.value[activeIndex.value] ?? images.value[0] ?? null)
+
+const displaySrc = computed(() => activeItem.value?.full ?? '')
+const displayIsVideo = computed(() => isVideoUrl(displaySrc.value) || isVideoUrl(activeItem.value?.thumb))
+
 
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -415,4 +468,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.evoc-video:fullscreen {
+  object-fit: contain !important;
+  background: black;
+}
+
+/* Safari / iOS */
+.evoc-video:-webkit-full-screen {
+  object-fit: contain !important;
+  background: black;
+}
+
 </style>
