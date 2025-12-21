@@ -115,17 +115,15 @@
     />
 
     <!-- detail modal -->
-   <MarkerDetailModal
-  :open="detailOpen"
-  :marker="activeDetail"
-  :readonly="false"
-  :visibilitySaving="savingVisibility"
-  @close="detailOpen = false"
-  @open-on-map="handleOpenOnMap"
-  @edit="handleEdit"
-  @delete="handleDelete"
-  @set-visibility="onSetVisibility"
-/>
+    <MarkerStoryModal
+      :open="detailOpen"
+      :marker="activeDetail"
+      :readonly="false"
+      @close="detailOpen = false"
+      @open-on-map="handleOpenOnMap"
+      @edit="handleEdit"
+      @delete="handleDelete"
+    />
 
     <!-- credits :) -->
     <div class="fixed bottom-4 right-4 z-40">
@@ -166,6 +164,7 @@ import { useMarkerStore } from '@/stores/MarkerStore'
 import type { NewMarker, Marker as MarkerType } from '@/types/Marker'
 import { apiFetch } from '@/lib/api'
 import { reversePlaceName } from '@/lib/reverseGeocode'
+import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
 
 defineOptions({ name: 'MapViewPage' })
 

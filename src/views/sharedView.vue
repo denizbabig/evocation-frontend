@@ -135,13 +135,13 @@
     </div>
 
     <!-- detail modal (read-only: wir binden KEIN edit/delete) -->
-    <MarkerDetailModal
-  :open="detailOpen"
-  :marker="selected"
-  :readonly="true"
-  @close="detailOpen = false"
-  @open-on-map="handleOpenOnMap"
-/>
+    <MarkerStoryModal
+      :open="detailOpen"
+      :marker="selected"
+      :readonly="true"
+      @close="detailOpen = false"
+      @open-on-map="handleOpenOnMap"
+    />
 
     <!-- credits :) -->
     <div class="fixed bottom-4 right-4 z-40">
@@ -176,6 +176,7 @@ import GeoSearchBox from '@/components/GeoSearchBox.vue'
 import MarkerDetailModal from '@/components/MarkerDetailModal.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import gemini2 from '@/assets/gemini2.png'
+import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
 
 defineOptions({ name: 'SharedViewPage' })
 
