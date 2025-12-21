@@ -79,8 +79,12 @@
         </div>
 
         <!-- ✅ 2) Embedded Widget direkt im Signup Flow -->
+        <!-- ✅ 2) Embedded Widget direkt im Signup Flow -->
         <div v-else class="text-left -mt-20">
-          <OktaWidget flow="signup" @success="router.replace('/mapview')" />
+          <!-- Platz reservieren, damit nix springt -->
+          <div class="min-h-[520px]">
+            <OktaWidget flow="signup" @success="router.replace('/mapview')" />
+          </div>
 
           <div class="mt-6">
             <AppButton
@@ -89,9 +93,9 @@
               class="w-full"
               @click="showWidget = false"
             >
-              <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                Zurück
-              </span>
+      <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+        Zurück
+      </span>
             </AppButton>
           </div>
         </div>
