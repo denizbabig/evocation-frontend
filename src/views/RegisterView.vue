@@ -82,7 +82,7 @@
         <!-- ✅ 2) Embedded Widget direkt im Signup Flow -->
         <div v-else class="text-left -mt-20">
           <!-- Platz reservieren, damit nix springt -->
-          <div class="min-h-[520px]">
+          <div class="min-h-[380px]">
             <OktaWidget flow="signup" @success="router.replace('/mapview')" />
           </div>
 
