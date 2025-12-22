@@ -280,6 +280,15 @@
       @submit="saveCreatedMarker"
     />
 
+
+    <MarkerEditModal
+      :open="editOpen"
+      :marker="activeMarker"
+      :saving="editSaving"
+      @close="editOpen = false"
+      @submit="onEditSubmit"
+    />
+
     <!-- Share link output -->
     <div v-if="shareLink" class="mt-5 text-center text-gray-400">
       <span class="text-sm">Dein Share-Link:</span>
@@ -315,7 +324,8 @@ import { reversePlaceName } from '@/lib/reverseGeocode'
 import { MapPinIcon, CameraIcon, GlobeEuropeAfricaIcon } from '@heroicons/vue/24/outline'
 import ShareLinkModal from '@/components/ShareModal.vue'
 import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
-
+import MarkerEditModal from "@/components/MarkerEditModal.vue";
+import { updateMarkerMultipart } from '@/lib/markerApi'
 const shareModalOpen = ref(false)
 defineOptions({ name: 'DashboardView' })
 
@@ -391,8 +401,24 @@ function handleOpenOnMap(id: number) {
   router.push({ path: '/map', query: { focus: String(id) } })
 }
 function handleEdit(id: number) {
-  router.push({ path: '/map', query: { focus: String(id), edit: '1' } })
+  detailOpen.value = false
+  editId.value = id
+  editOpen.value = true
 }
+
+async function handleEditSubmit(payload: any) {
+  console.log('EDIT SUBMIT payload:', payload)
+
+  // TODO: später: API call / store.updateMarker(...)
+  // await markerStore.updateMarker(payload)
+
+  editOpen.value = false
+  editId.value = null
+
+  // optional: refresh
+  // await markerStore.loadMarkers()
+}
+
 async function handleDelete(id: number) {
   try {
     await markerStore.deleteMarker(id)   // ✅ ruft /api/markers/:id → Backend löscht auch Cloudinary
@@ -583,6 +609,37 @@ function coverCardSrc(m: any): string | null {
     return null
   }
 }
+
+const editOpen = ref(false)
+const editId = ref<number | null>(null)
+
+const activeMarker = computed(() => {
+  if (editId.value == null) return null
+  return uiMarkers.value.find(m => Number(m.id) === Number(editId.value)) ?? null
+})
+
+
+
+const editSaving = ref(false)
+
+async function onEditSubmit({ payload, files }: { payload: any; files: File[] }) {
+  if (!activeMarker.value?.id) return
+  editSaving.value = true
+  try {
+    await updateMarkerMultipart(activeMarker.value.id, payload, files)
+    await markerStore.loadMarkers()
+    editOpen.value = false
+    editId.value = null
+  } finally {
+    editSaving.value = false
+  }
+}
+
+async function refreshMarkers() {
+  await markerStore.loadMarkers()
+}
+
+
 
 
 </script>

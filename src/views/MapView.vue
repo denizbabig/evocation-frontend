@@ -125,6 +125,14 @@
       @delete="handleDelete"
     />
 
+    <MarkerEditModal
+      :open="editOpen"
+      :marker="activeMarker"
+      :saving="editSaving"
+      @close="editOpen = false"
+      @submit="onEditSubmit"
+    />
+
     <!-- credits :) -->
     <div class="fixed bottom-4 right-4 z-40">
       <div class="pointer-events-auto rounded-lg bg-[#0b1228]/80 border border-white/12 px-3 py-1.5 text-[11px] text-gray-300 shadow-lg shadow-black/30">
@@ -165,6 +173,8 @@ import type { NewMarker, Marker as MarkerType } from '@/types/Marker'
 import { apiFetch } from '@/lib/api'
 import { reversePlaceName } from '@/lib/reverseGeocode'
 import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
+import {updateMarkerMultipart} from "@/lib/markerApi.ts";
+import MarkerEditModal from "@/components/MarkerEditModal.vue"
 
 defineOptions({ name: 'MapViewPage' })
 
@@ -257,8 +267,18 @@ function handleOpenOnMap(id: number) {
   if (m) mapRef.value?.flyTo(m.lat, m.lng, 13)
 }
 
+const editOpen = ref(false)
+const editId = ref<number | null>(null)
+
+const activeMarker = computed(() => {
+  if (editId.value == null) return null
+  return markers.value.find(m => Number(m.id) === Number(editId.value)) ?? null
+})
+
 function handleEdit(id: number) {
-  console.log('edit marker', id)
+  detailOpen.value = false
+  editId.value = id
+  editOpen.value = true
 }
 
 async function handleDelete(id: number) {
@@ -358,6 +378,30 @@ async function saveMarker(payload: NewMarker) {
     console.error(e)
   }
 }
+
+const editSaving = ref(false)
+
+async function onEditSubmit({ payload, files }: { payload: any; files: File[] }) {
+  if (!activeMarker.value?.id) return
+  editSaving.value = true
+  try {
+    await updateMarkerMultipart(activeMarker.value.id, payload, files)
+    await markerStore.loadMarkers()
+
+    // flyTo nur hier ✅
+    mapRef.value?.flyTo(payload.lat, payload.lng, 13)
+
+    editOpen.value = false
+    editId.value = null
+  } finally {
+    editSaving.value = false
+  }
+}
+
+async function refreshMarkers() {
+  await markerStore.loadMarkers()
+}
+
 
 </script>
 

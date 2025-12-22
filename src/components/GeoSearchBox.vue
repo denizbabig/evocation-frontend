@@ -22,7 +22,10 @@
 
       <!-- Suchleiste -->
       <div
-        class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2 shadow-xl shadow-fuchsia-900/20"
+        :class="[
+          'relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2',
+          shadow ? 'shadow-xl shadow-fuchsia-900/20' : ''
+        ]"
       >
         <div class="pl-1 pr-2 text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -67,7 +70,7 @@
           role="option"
           :aria-selected="i === activeIndex"
         >
-          <!-- Aktiver Zeilen-Glow (unverändert) -->
+          <!-- Aktiver Zeilen-Glow -->
           <div
             :class="[
               'pointer-events-none absolute -inset-[1px] rounded-xl transition duration-300',
@@ -88,7 +91,7 @@
                   <stop offset="1" stop-color="#60a5fa"/>
                 </linearGradient>
               </defs>
-              <path :fill="`url(#evoc-grad-${i})`" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/>
+              <path :fill="`url(#evoc-grad-${i})`" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7.5 7.5 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/>
             </svg>
           </div>
 
@@ -120,7 +123,8 @@ const props = withDefaults(defineProps<{
   suggestLimit?: number
   suggestLang?: string
   searchLimit?: number
-  glow?: boolean            // 👈 Neu: Glow um die Suchleiste
+  glow?: boolean
+  shadow?: boolean            // ✅ neu
 }>(), {
   placeholder: 'Ort suchen',
   minChars: 3,
@@ -128,7 +132,8 @@ const props = withDefaults(defineProps<{
   suggestLimit: 7,
   suggestLang: 'de',
   searchLimit: 5,
-  glow: true               // Standard: Glow an
+  glow: true,
+  shadow: true,               // ✅ neu
 })
 
 const emit = defineEmits<{
