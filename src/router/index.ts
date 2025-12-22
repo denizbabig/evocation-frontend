@@ -11,7 +11,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import LoginCallbackView from '@/views/LoginCallbackView.vue'
 import sharedView from '@/views/sharedView.vue'
-
+import SavedSharedLinksView from "@/views/SavedSharedLinksView.vue";
 import DemoMapView from '@/views/DemoMapView.vue'
 
 import { oktaAuth, loginRedirect } from '@/lib/oktaAuth'
@@ -41,7 +41,8 @@ const router = createRouter({
     { path: '/shared/:code', name: 'shared', component: sharedView },
 
     { path: '/demo', name: 'demomap', component: DemoMapView },
-
+    {
+      path: '/shared-links', name: 'shared-links', component: SavedSharedLinksView, meta: { requiresAuth: true },}
   ],
 })
 

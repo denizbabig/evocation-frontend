@@ -152,6 +152,32 @@
           </AppButton>
 
           <AppButton
+            :to="routes.sharedLinks"
+            :disabled="!isAuthenticated"
+            variant="secondary"
+            size="md"
+            class="w-full justify-start sidebar-btn"
+            :class="activeClass('/shared-links')"
+            @click="closeOnly"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
+                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M13.5 6.75h3A2.25 2.25 0 0 1 18.75 9v8.25A2.25 2.25 0 0 1 16.5 19.5h-3" />
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M10.5 17.25h-3A2.25 2.25 0 0 1 5.25 15V6.75A2.25 2.25 0 0 1 7.5 4.5h3" />
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M8.25 12h7.5" />
+            </svg>
+
+            <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+    Geteilte Karten
+  </span>
+
+            <span v-if="!isAuthenticated" class="ml-auto badge">Login nötig</span>
+          </AppButton>
+
+          <AppButton
             :to="routes.profile"
             :disabled="!isAuthenticated"
             variant="secondary"
@@ -171,6 +197,9 @@
             <span v-if="!isAuthenticated" class="ml-auto badge">Login nötig</span>
           </AppButton>
         </div>
+
+
+
 
         <div class="my-5 h-px bg-white/10" />
 
@@ -220,7 +249,9 @@
         </div>
       </nav>
 
-      <!-- Auth Aktionen -->
+
+
+        <!-- Auth Aktionen -->
       <div class="mt-6 border-t border-white/10 pt-5 space-y-3">
         <!-- login /register wenn nicht auth -->
         <div v-if="!isAuthenticated" class="space-y-3">
@@ -305,7 +336,8 @@ const routes = {
 
   dashboard: '/dashboard',
   profile: '/profile',
-  mapview: '/mapview'
+  mapview: '/mapview',
+  sharedLinks: '/shared-links'
 }
 
 function closeOnly() {
@@ -313,9 +345,16 @@ function closeOnly() {
 }
 
 function activeClass(pathPrefix: string) {
-  return route.path.startsWith(pathPrefix)
-    ? 'sidebar-link--active'
-    : ''
+  const p = route.path
+
+  // Home nur exakt
+  if (pathPrefix === '/') {
+    return p === '/' ? 'sidebar-link--active' : ''
+  }
+
+  // “echtes Prefix”: entweder exakt /foo oder /foo/...
+  const isActive = p === pathPrefix || p.startsWith(pathPrefix + '/')
+  return isActive ? 'sidebar-link--active' : ''
 }
 
 const isAuthenticated = ref(false)

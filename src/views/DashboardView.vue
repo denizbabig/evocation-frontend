@@ -307,7 +307,7 @@ import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import MarkerDetailModal from '@/components/MarkerDetailModal.vue'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
 
-import { ref, computed, onMounted } from 'vue'
+import {ref, computed, onMounted, nextTick, watch, onBeforeUnmount} from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useMarkerStore } from '@/stores/MarkerStore'
@@ -326,6 +326,9 @@ import ShareLinkModal from '@/components/ShareModal.vue'
 import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
 import MarkerEditModal from "@/components/MarkerEditModal.vue";
 import { updateMarkerMultipart } from '@/lib/markerApi'
+
+const shellRef = ref<HTMLElement | null>(null)
+
 const shareModalOpen = ref(false)
 defineOptions({ name: 'DashboardView' })
 
@@ -638,9 +641,6 @@ async function onEditSubmit({ payload, files }: { payload: any; files: File[] })
 async function refreshMarkers() {
   await markerStore.loadMarkers()
 }
-
-
-
 
 </script>
 

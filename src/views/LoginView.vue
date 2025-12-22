@@ -3,10 +3,14 @@
     class="relative flex min-h-[100dvh] w-full flex-col items-center justify-start
            bg-[#0e162c] text-white font-sans overflow-hidden"
   >
-    <div class="absolute inset-0 z-0">
-      <MapView class="h-full w-full scale-110 opacity-50 blur-sm brightness-75" />
-      <div class="absolute inset-0 bg-gradient-to-b from-[#0e162c]/30 via-[#0e162c]/80 to-[#0e162c]" />
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0e162c]/60 to-[#0e162c]" />
+
+      <div class="absolute inset-0 z-0">
+        <div
+          class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-55 blur-sm brightness-75"
+          :style="{ backgroundImage: `url(${gemini2})` }"
+        />
+        <div class="absolute inset-0 bg-gradient-to-b from-[#0e162c]/30 via-[#0e162c]/80 to-[#0e162c]" />
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-[#0e162c]/60 to-[#0e162c]" />
     </div>
 
     <div
@@ -112,6 +116,7 @@ import MapView from '@/components/MapLoad.vue'
 import BaseCard from '@/components/BaseCard.vue'
 import OktaWidget from '@/components/OktaWidget.vue'
 import { oktaAuth } from '@/lib/oktaAuth'
+import gemini2 from "@/assets/gemini2.png";
 
 defineOptions({ name: 'LoginView' })
 

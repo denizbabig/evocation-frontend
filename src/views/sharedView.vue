@@ -113,23 +113,93 @@
     <DashboardSidebar :isOpen="isSidebarOpen" @close="isSidebarOpen = false" />
 
     <!-- Readonly error overlay -->
+    <!-- Readonly error overlay -->
     <div v-if="error" class="absolute inset-0 z-50 flex items-center justify-center p-6">
-      <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0b1228]/80 p-6 backdrop-blur-xl shadow-2xl">
-        <h2 class="text-xl font-bold mb-2">Shared Map</h2>
-        <p class="text-gray-300">{{ error }}</p>
-        <div class="mt-5 flex gap-3 justify-end">
-          <button
-            class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10 transition"
-            @click="goHome"
-          >
-            Zur Homepage
-          </button>
-          <button
-            class="rounded-full border border-fuchsia-400/20 bg-fuchsia-900/20 px-4 py-2 text-sm hover:bg-fuchsia-900/30 transition"
-            @click="loadSharedMarkers"
-          >
-            Neu laden
-          </button>
+      <div class="relative w-full max-w-lg isolate">
+        <!-- Glow Border -->
+        <div class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-60">
+          <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[14px]" />
+          <div class="absolute inset-[1px] rounded-[22px] bg-[#0e162c]/70" />
+        </div>
+
+        <!-- Card -->
+        <div class="relative rounded-3xl border border-white/10 bg-[#0b1228]/85 backdrop-blur-xl shadow-2xl shadow-purple-900/40 overflow-hidden">
+          <!-- Top bar -->
+          <div class="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-white/5">
+            <div class="flex items-center gap-3">
+              <div class="h-10 w-10 rounded-2xl bg-white/5 border border-white/10 grid place-items-center">
+                <!-- warning icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-fuchsia-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86 2.82 17a2 2 0 0 0 1.71 3h14.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                </svg>
+              </div>
+
+              <div>
+                <h2 class="text-lg font-bold tracking-tight">
+              <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+                Shared Map
+              </span>
+                </h2>
+                <div class="text-xs text-white/45">Zugriff nicht möglich</div>
+              </div>
+            </div>
+
+            <button
+              class="rounded-xl p-2 text-white/60 hover:text-white hover:bg-white/5 transition"
+              @click="goHome"
+              aria-label="Schließen"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Content -->
+          <div class="px-6 py-6 space-y-4">
+            <p class="text-sm text-gray-300 leading-relaxed">
+              {{ error }}
+            </p>
+
+            <!-- “revoked” hint styling (optional nice) -->
+            <!-- Revoked hint -->
+            <div
+              v-if="String(error).toLowerCase().includes('revoked')"
+              class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+            >
+              <!-- soft glow accent -->
+              <div class="pointer-events-none absolute -inset-6 opacity-30">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(240,171,252,0.35),_transparent_55%)]" />
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_rgba(96,165,250,0.25),_transparent_55%)]" />
+              </div>
+
+              <div class="relative flex gap-3">
+                <div class="mt-0.5 h-9 w-9 shrink-0 rounded-xl bg-black/20 border border-white/10 grid place-items-center">
+                  <!-- link-off icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 1 0-7l1-1a5 5 0 0 1 7 7l-1 1"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 0 1 0 7l-1 1a5 5 0 0 1-7-7l1-1"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2 2l20 20"/>
+                  </svg>
+                </div>
+
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold">
+        <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+          Link wurde zurückgezogen
+        </span>
+                  </div>
+                  <p class="mt-0.5 text-xs text-white/60 leading-relaxed">
+                    Der Besitzer hat den Share-Link deaktiviert. Bitte lass dir einen neuen Link schicken.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom hint -->
+
         </div>
       </div>
     </div>
@@ -177,6 +247,7 @@ import MarkerDetailModal from '@/components/MarkerDetailModal.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
 import gemini2 from '@/assets/gemini2.png'
 import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
+import AppButton from "@/components/AppButton.vue";
 
 defineOptions({ name: 'SharedViewPage' })
 

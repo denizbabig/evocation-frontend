@@ -69,52 +69,13 @@
 <p class="text-gray-300"><strong>Name:</strong> {{ oktaProfile.name ?? '—' }}</p>
 <p class="text-gray-300"><strong>User ID:</strong> {{ oktaProfile.sub ?? '—' }}</p>
             </div>
-
-
-            <h2 class="text-xl font-bold pt-4">
-                <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                    Profil bearbeiten
-                </span>
-            </h2>
-
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-400 mb-1">Benutzername</label>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  value="MaxMuster"
-                  required
-                  class="w-full rounded-md border border-gray-700 bg-gray-900/50 px-4 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                />
-            </div>
-
-            <div>
-                <label for="city" class="block text-sm font-medium text-gray-400 mb-1">Wohnort</label>
-                <input
-                  id="city"
-                  name="city"
-                  type="text"
-                  value="Berlin"
-                  required
-                  class="w-full rounded-md border border-gray-700 bg-gray-900/50 px-4 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                />
-            </div>
-
-            <div class="pt-4">
-                <AppButton type="submit" variant="primary" size="lg" class="w-full">
-                    <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent font-semibold">
-                        Änderungen speichern
-                    </span>
-                </AppButton>
-            </div>
         </form>
 
       </BaseCard>
 
-      <div class="mt-8 w-full max-w-lg text-center">
-        <AppButton to="/" variant="secondary" size="md">
-          <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">Zurück zur Übersicht</span>
+      <div class="mt-16 w-full max-w-lg text-center">
+        <AppButton to="/" variant="primary" size="lg">
+          <span class="mr-2 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Zurück zur Homepage</span>
         </AppButton>
       </div>
 

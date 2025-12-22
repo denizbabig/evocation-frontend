@@ -5,16 +5,15 @@
       <div
         v-if="open"
         class="fixed inset-0 z-[1300] flex items-center justify-center p-4"
-        @click="emit('close')"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="emit('close')"></div>
 
         <!-- Frame Wrap -->
-        <div class="relative pointer-events-auto w-full flex items-center justify-center" @click.stop>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
 
-          <!-- SIZE WRAPPER (Glow darf nur hier drin bluren) -->
-          <div class="relative w-full max-w-[480px] aspect-[9/16] max-h-[90dvh]">
+        <!-- SIZE WRAPPER (Glow darf nur hier drin bluren) -->
+          <div class="relative w-full max-w-[480px] aspect-[9/16] max-h-[90dvh] pointer-events-auto">
 
             <!-- Glow (jetzt NICHT mehr screen-wide) -->
             <!-- Glow (clean like MarkerDetailModal) -->

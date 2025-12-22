@@ -92,3 +92,34 @@ export async function fetchSharedMarkers(code: string) {
   return apiFetch(`/share/${encodeURIComponent(code)}/markers`)
 }
 
+export type SavedShareLinkDTO = {
+  id: number
+  code: string
+  label?: string | null
+  createdAt?: string | null
+  active?: boolean
+}
+
+export async function listSavedShareLinks() {
+  return apiFetch('/share/saved', { method: 'GET' }) as Promise<SavedShareLinkDTO[]>
+}
+
+export async function createSavedShareLink(codeOrLink: string, label?: string | null) {
+  return apiFetch('/share/saved', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codeOrLink, label }),
+  }) as Promise<SavedShareLinkDTO>
+}
+
+export async function updateSavedShareLinkLabel(id: number, label?: string | null) {
+  return apiFetch(`/share/saved/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  }) as Promise<SavedShareLinkDTO>
+}
+
+export async function deleteSavedShareLink(id: number) {
+  return apiFetch(`/share/saved/${id}`, { method: 'DELETE' })
+}
