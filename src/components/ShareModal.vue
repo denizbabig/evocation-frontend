@@ -13,8 +13,11 @@
     <Transition name="evoc-modal" appear>
       <div
         v-if="open"
+        ref="shellRef"
         class="fixed inset-0 z-[1201] flex items-center justify-center p-4"
-        @keydown.esc="close"
+        tabindex="0"
+        @keydown.esc.prevent="close"
+        @click.self="onBackdrop"
       >
         <div class="relative w-full max-w-xl will-change-transform will-change-opacity">
           <div class="relative isolate">
@@ -89,29 +92,79 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex flex-col sm:flex-row gap-3 sm:justify-end mt-8">
-                    <p v-if="copied" class="text-xs text-gray-400 text-center mt-2">
-                    Du kannst den Link jetzt an Freunde schicken.
-                  </p>
-                    <AppButton variant="secondary" type="button" @click="copyLink" class="sm:min-w-[140px]">
-                      <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                        {{ copied ? 'Kopiert' : 'Kopieren' }}
-                      </span>
-                    </AppButton>
+                  <div class="mt-8 space-y-3">
+                    <p v-if="copied" class="text-xs text-gray-400 text-center">
+                      Du kannst den Link jetzt an Freunde schicken.
+                    </p>
 
-                    <AppButton variant="primary" type="button" @click="openLink" class="sm:min-w-[140px]">
-                      <span class="bg-gradient-to-r from-purple-600 via-fuchsia-400 to-indigo-600 bg-clip-text text-transparent">
-                        Öffnen
-                      </span>
-                    </AppButton>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <!-- Row 1 -->
+                      <AppButton
+                        variant="secondary"
+                        type="button"
+                        @click="copyLink"
+                        class="w-full"
+                      >
+      <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+        {{ copied ? 'Kopiert' : 'Kopieren' }}
+      </span>
+                      </AppButton>
 
+                      <AppButton
+                        variant="primary"
+                        type="button"
+                        @click="openLink"
+                        class="w-full"
+                      >
+      <span class="bg-gradient-to-r from-purple-600 via-fuchsia-400 to-indigo-600 bg-clip-text text-transparent">
+        Öffnen
+      </span>
+                      </AppButton>
+
+                      <!-- Row 2 -->
+                      <AppButton
+                        variant="secondary"
+                        type="button"
+                        @click="revokeLink"
+                        :disabled="revoking || !shareLink"
+                        class="w-full"
+                      >
+      <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+        {{ revoking ? 'Ziehe zurück…' : 'Link zurückziehen' }}
+      </span>
+                      </AppButton>
+
+                      <AppButton
+                        variant="primary"
+                        type="button"
+                        @click="rotateLink"
+                        :disabled="rotating"
+                        class="w-full"
+                      >
+      <span class="bg-gradient-to-r from-purple-600 via-fuchsia-400 to-indigo-600 bg-clip-text text-transparent">
+        {{ rotating ? 'Erzeuge neu…' : 'Neuen Link erzeugen' }}
+      </span>
+                      </AppButton>
+                    </div>
+                  </div>
+                  </div>
+                <!-- No link -->
+                <!-- No link -->
+                <div v-else class="space-y-3">
+                  <div class="rounded-xl bg-white/5 border border-white/10 px-4 py-4 text-sm text-gray-300">
+                    <span v-if="revoked">Link wurde zurückgezogen.</span>
+                    <span v-else>Noch kein Link erstellt.</span>
                   </div>
 
-                </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-1 gap-3">
+                    <AppButton variant="primary" type="button" class="w-full" @click="generate" :disabled="loading">
+      <span class="bg-gradient-to-r from-purple-600 via-fuchsia-400 to-indigo-600 bg-clip-text text-transparent">
+        Neuen Link erzeugen
+      </span>
+                    </AppButton>
 
-                <!-- No link -->
-                <div v-else class="rounded-xl bg-white/5 border border-white/10 px-4 py-4 text-sm text-gray-300">
-                  Noch kein Link erstellt.
+
+                  </div>
                 </div>
               </div>
 
@@ -131,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import {computed, nextTick, ref, watch} from 'vue'
 import AppButton from '@/components/AppButton.vue'
 import { apiFetch } from '@/lib/api'
 
@@ -168,27 +221,6 @@ function onBackdrop() {
   if (props.closeOnBackdrop) close()
 }
 
-async function generate() {
-  loading.value = true
-  error.value = null
-  copied.value = false
-
-  try {
-    const data = await apiFetch(props.endpoint, { method: 'POST' })
-    const code = data?.code
-    if (!code) throw new Error('Backend hat keinen code zurückgegeben')
-
-    const link = `${window.location.origin}${props.sharedPathPrefix}${encodeURIComponent(code)}`
-    shareLink.value = link
-    emit('generated', link)
-  } catch (e: any) {
-    console.error(e)
-    error.value = e?.message ?? 'Konnte Share-Link nicht erstellen.'
-    shareLink.value = null
-  } finally {
-    loading.value = false
-  }
-}
 
 async function copyLink() {
   if (!shareLink.value) return
@@ -213,6 +245,81 @@ function openLink() {
   if (!shareLink.value) return
   window.open(shareLink.value, '_blank', 'noopener,noreferrer')
 }
+
+
+const shareCode = ref<string | null>(null)
+const revoking = ref(false)
+const rotating = ref(false)
+
+
+async function rotateLink() {
+  // rotate = revoke + neu generieren
+  if (!shareCode.value) {
+    await generate()
+    return
+  }
+  rotating.value = true
+  try {
+    await revokeLink()
+    await generate()
+  } finally {
+    rotating.value = false
+  }
+}
+
+const revoked = ref(false)
+
+async function generate() {
+  loading.value = true
+  error.value = null
+  copied.value = false
+  revoked.value = false // <- reset
+
+  try {
+    const data = await apiFetch(props.endpoint, { method: 'POST' })
+    const code = data?.code
+    if (!code) throw new Error('Backend hat keinen code zurückgegeben')
+
+    shareCode.value = code
+    shareLink.value = `${window.location.origin}${props.sharedPathPrefix}${encodeURIComponent(code)}`
+    emit('generated', shareLink.value)
+  } catch (e: any) {
+    console.error(e)
+    error.value = e?.message ?? 'Konnte Share-Link nicht erstellen.'
+    shareLink.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+async function revokeLink() {
+  if (!shareCode.value) return
+  revoking.value = true
+  error.value = null
+  try {
+    await apiFetch(`${props.endpoint}/${encodeURIComponent(shareCode.value)}`, { method: 'DELETE' })
+    shareLink.value = null
+    shareCode.value = null
+    revoked.value = true // <- merken, dass er gerade zurückgezogen wurde
+  } catch (e: any) {
+    console.error(e)
+    error.value = e?.message ?? 'Konnte Share-Link nicht zurückziehen.'
+  } finally {
+    revoking.value = false
+  }
+}
+
+const shellRef = ref<HTMLElement | null>(null)
+
+watch(
+  () => open.value,
+  async (isOpen) => {
+    if (!isOpen) return
+    await nextTick()
+    shellRef.value?.focus()     // <- das macht ESC zuverlässig
+    if (props.autoGenerate && !shareLink.value && !loading.value) generate()
+  }
+)
 
 </script>
 
