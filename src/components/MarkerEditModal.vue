@@ -591,7 +591,6 @@ import AppButton from '@/components/AppButton.vue'
 import { normalizeMarkerImages } from '@/lib/markerImages'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
 import { primaryLabel } from '@/lib/reverseGeocode'
-import Draggable from 'vuedraggable'
 import SavingOverlay from '@/components/SavingOverlay.vue'
 
 type Visibility = 'PRIVATE' | 'PUBLIC'
