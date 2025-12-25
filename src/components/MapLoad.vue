@@ -8,22 +8,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import type { FeatureCollection, Feature, Point } from 'geojson'
-
-const props = withDefaults(defineProps<{
-  markers: Array<{
-    id: number
-    lat: number
-    lng: number
-    title?: string
-    categoryId?: number | string
-    color?: string
-  }>
-  cluster?: boolean
-}>(), {
-  cluster: true
-})
-
+import type { FeatureCollection, Feature, Point, LineString } from 'geojson'
 
 const emit = defineEmits<{
   (e: 'map-move', payload: { center: { lat: number; lng: number }; zoom: number }): void
@@ -42,13 +27,53 @@ function flyTo(lat: number, lng: number, z = 12) {
 function resetView() {
   map.value?.flyTo({ center: [13.4050, 52.5200], zoom: 3.5, speed: 0.9, curve: 1.2, essential: true })
 }
-defineExpose({ zoomIn, zoomOut, flyTo, resetView, fitBounds})
 
 
 const SRC_MARKERS   = 'evoc-src-markers'
 const LYR_POINTS    = 'evoc-lyr-points'
 const LYR_CLUSTERS  = 'evoc-lyr-clusters'
 
+const props = withDefaults(defineProps<{
+  markers: Array<{
+    id: number
+    lat: number
+    lng: number
+    title?: string
+    categoryId?: number | string
+    color?: string
+  }>
+  cluster?: boolean
+
+  // ✅ NEU:
+  routes?: Array<{ fromId: number; toId: number }>
+}>(), {
+  cluster: true,
+  routes: () => [],
+})
+
+const SRC_ROUTES = 'evoc-src-routes'
+const LYR_ROUTES = 'evoc-lyr-routes'
+
+function fcFromRoutes(
+  routes: Array<{ fromId: number; toId: number }>,
+  markerList: typeof props.markers
+): FeatureCollection<LineString, any> {
+  const byId = new Map<number, [number, number]>()
+  markerList.forEach(m => byId.set(m.id, [m.lng, m.lat]))
+
+  const features: Feature<LineString, any>[] = []
+  for (const r of routes) {
+    const a = byId.get(r.fromId)
+    const b = byId.get(r.toId)
+    if (!a || !b) continue
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: [a, b] },
+      properties: { fromId: r.fromId, toId: r.toId }
+    })
+  }
+  return { type: 'FeatureCollection', features }
+}
 
 function fcFromMarkers(list: typeof props.markers): FeatureCollection<Point, any> {
   const features: Feature<Point, any>[] = list.map(m => ({
@@ -124,6 +149,30 @@ function ensureSourcesAndLayers() {
     } as any)
   }
 
+  if (!m.getSource(SRC_ROUTES)) {
+    m.addSource(SRC_ROUTES, {
+      type: 'geojson',
+      data: fcFromRoutes(props.routes ?? [], props.markers),
+    } as any)
+  }
+
+  // ✅ ROUTES LAYER (unter den Pins)
+  if (!m.getLayer(LYR_ROUTES)) {
+    m.addLayer({
+      id: LYR_ROUTES,
+      type: 'line',
+      source: SRC_ROUTES,
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': '#a78bfa',      // simple start, kann später Gradient werden
+        'line-width': 3,
+        'line-opacity': 0.85,
+      },
+    } as any)
+  }
 
   if (!m.getLayer(LYR_POINTS)) {
     m.addLayer({
@@ -198,8 +247,16 @@ function updateSourceData() {
   const src = m.getSource(SRC_MARKERS) as maplibregl.GeoJSONSource | undefined
   if (!src) return
   src.setData(fcFromMarkers(props.markers))
+  updateRoutesData()
 }
 
+function updateRoutesData() {
+  const m = map.value
+  if (!m) return
+  const src = m.getSource(SRC_ROUTES) as maplibregl.GeoJSONSource | undefined
+  if (!src) return
+  src.setData(fcFromRoutes(props.routes ?? [], props.markers))
+}
 
 onMounted(() => {
   const container = mapEl.value ?? document.getElementById('map')
@@ -228,20 +285,24 @@ onMounted(() => {
 
 
   m.on('click', (e) => {
-  const hits = m.queryRenderedFeatures(e.point, {
-    layers: [LYR_POINTS, LYR_CLUSTERS],
-  })
-  if (hits && hits.length) {
+    // ✅ robust: check ALLE Features unter dem Cursor
+    const hits = m.queryRenderedFeatures(e.point)
 
-    return
-  }
-  emit('map-click', {
-    lat: e.lngLat.lat,
-    lng: e.lngLat.lng,
-    screenX: e.point.x,
-    screenY: e.point.y,
+    const clickedMarkerOrCluster = hits.some((f: any) => {
+      const p = f?.properties ?? {}
+      // Marker: hat "id", Cluster: hat "point_count"
+      return p.id != null || p.point_count != null
+    })
+
+    if (clickedMarkerOrCluster) return
+
+    emit('map-click', {
+      lat: e.lngLat.lat,
+      lng: e.lngLat.lng,
+      screenX: e.point.x,
+      screenY: e.point.y,
+    })
   })
-})
 })
 
 onBeforeUnmount(() => {
@@ -255,9 +316,113 @@ function fitBounds(west: number, south: number, east: number, north: number, pad
   )
 }
 
+function removeMarkerLayersAndSource() {
+  const m = map.value
+  if (!m) return
 
+  // layers zuerst
+  if (m.getLayer(LYR_POINTS)) m.removeLayer(LYR_POINTS)
+  if (m.getLayer(LYR_CLUSTERS)) m.removeLayer(LYR_CLUSTERS)
+
+  // source dann
+  if (m.getSource(SRC_MARKERS)) m.removeSource(SRC_MARKERS)
+}
+
+function rebuildMarkerSource() {
+  const m = map.value
+  if (!m) return
+  removeMarkerLayersAndSource()
+
+  // source neu mit cluster flag
+  m.addSource(SRC_MARKERS, {
+    type: 'geojson',
+    data: fcFromMarkers(props.markers),
+    cluster: props.cluster,
+    clusterRadius: 56,
+    clusterMaxZoom: 13,
+  } as any)
+
+  // layers neu
+  if (!m.getLayer(LYR_POINTS)) {
+    m.addLayer({
+      id: LYR_POINTS,
+      type: 'symbol',
+      source: SRC_MARKERS,
+      filter: ['!', ['has', 'point_count']],
+      layout: {
+        'icon-image': 'pin-grad',
+        'icon-anchor': 'bottom',
+        'icon-size': 0.5,
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      }
+    })
+  }
+
+  if (props.cluster && !m.getLayer(LYR_CLUSTERS)) {
+    m.addLayer({
+      id: LYR_CLUSTERS,
+      type: 'symbol',
+      source: SRC_MARKERS,
+      filter: ['has', 'point_count'],
+      layout: {
+        'icon-image': 'pin-grad-lg',
+        'icon-anchor': 'bottom',
+        'icon-size': 0.5,
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      }
+    })
+  }
+
+  // Hover cursor
+  ;[LYR_POINTS, LYR_CLUSTERS].forEach((lid) => {
+    if (!m.getLayer(lid)) return
+    m.on('mouseenter', lid, () => (m.getCanvas().style.cursor = 'pointer'))
+    m.on('mouseleave', lid, () => (m.getCanvas().style.cursor = ''))
+  })
+
+  // Cluster click zoom
+  if (props.cluster && m.getLayer(LYR_CLUSTERS)) {
+    m.on('click', LYR_CLUSTERS as any, async (e: any) => {
+      e?.originalEvent?.stopPropagation?.() // ✅ verhindert globalen map-click
+      const f = e.features?.[0]
+      if (!f) return
+      const clusterId = f.properties.cluster_id
+      const src = m.getSource(SRC_MARKERS) as any
+      const z: number = await src.getClusterExpansionZoom(clusterId)
+      const [lng, lat] = f.geometry.coordinates as [number, number]
+      m.easeTo({ center: [lng, lat], zoom: z, duration: 1000 })
+    })
+  }
+
+  // Marker click
+  if (m.getLayer(LYR_POINTS)) {
+    m.on('click', LYR_POINTS, (e: any) => {
+      e?.originalEvent?.stopPropagation?.() // ✅ verhindert globalen map-click
+      const f = e.features?.[0]
+      if (!f) return
+      const id = Number(f.properties?.id)
+      if (Number.isFinite(id)) emit('marker-click', { id })
+    })
+  }
+}
+
+watch(() => props.cluster, () => {
+  const m = map.value
+  if (!m || !m.isStyleLoaded()) return
+  rebuildMarkerSource()
+})
+
+function getZoom() {
+  return map.value?.getZoom() ?? 0
+}
+
+defineExpose({ zoomIn, zoomOut, flyTo, resetView, fitBounds, getZoom })
 
 watch(() => props.markers, updateSourceData, { deep: true })
+watch(() => props.routes, () => updateRoutesData(), { deep: true })
+
 </script>
 
 <style scoped>

@@ -354,39 +354,67 @@
                   </div>
 
                   <!-- Datum -->
-                  <div class="relative group isolate" @click="openDatePicker">
-                    <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                      <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-                    </div>
+                  <!-- Datum + Trip nebeneinander -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Datum -->
+                    <div class="relative group isolate" @click="openDatePicker">
+                      <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
+                        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                        <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                      </div>
 
-                    <div class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
-                      <div class="pl-1 pr-2 text-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/>
-                        </svg>
+                      <div class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                        <div class="pl-1 pr-2 text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/>
+                          </svg>
+                        </div>
+
+                        <input
+                          :value="dateDisplay"
+                          type="text"
+                          readonly
+                          placeholder="Datum auswählen"
+                          class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0 cursor-pointer"
+                        />
                       </div>
 
                       <input
-                        :value="dateDisplay"
-                        type="text"
-                        readonly
-                        placeholder="Datum auswählen"
-                        class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0 cursor-pointer"
+                        ref="dateInput"
+                        v-model="draft.occurredAt"
+                        type="date"
+                        class="absolute inset-0 opacity-0 cursor-pointer [color-scheme:dark]"
+                        @click.stop
+                        aria-label="Datum auswählen"
                       />
                     </div>
 
-                    <!-- echtes date input (unsichtbar) -->
-                    <input
-                      ref="dateInput"
-                      v-model="draft.occurredAt"
-                      type="date"
-                      class="absolute inset-0 opacity-0 cursor-pointer [color-scheme:dark]"
-                      @click.stop
-                      aria-label="Datum auswählen"
-                    />
+                    <!-- Trip -->
+                    <div class="relative group isolate">
+                      <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
+                        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                        <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                      </div>
+
+                      <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                        <select
+                          v-model="selectedTripId"
+                          class="w-full bg-transparent border-none outline-none text-white h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                          :disabled="tripResolving"
+                        >
+                          <option :value="null" class="bg-[#1a233e] text-gray-400">
+                            {{ tripNullLabel }}
+                          </option>
+                          <option v-for="t in tripOptions" :key="t.id" :value="t.id" class="bg-[#1a233e]">
+                            {{ t.title }}
+                          </option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
+
 
                   <div class="relative group isolate">
                     <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
@@ -414,9 +442,9 @@
                   <p class="text-center text-white/60 mt-2">Alles sieht perfekt aus!</p>
 
                   <div class="mt-10 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 items-start">
-                    <!-- Preview card (Dashboard-height, no border, glow like inputs) -->
+                    <!-- Preview card -->
                     <div class="relative group isolate h-[400px] rounded-3xl">
-                      <!-- Glow (wie Inputs: nur hover/focus-look, blur 10) -->
+                      <!-- Glow (wie Inputs) -->
                       <div
                         class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-0 group-hover:opacity-100 transition duration-300"
                       >
@@ -425,7 +453,6 @@
                         <div class="absolute inset-[1px] rounded-[calc(1.5rem-1px)] bg-[#0e162c]" />
                       </div>
 
-                      <!-- Surface (WICHTIG: gleiche Höhe wie Wrapper, kein Border) -->
                       <div class="relative z-10 h-[400px] overflow-hidden rounded-3xl bg-[#141c34]/60 backdrop-blur-md border border-white/10">
                         <video
                           v-if="coverMedia && coverMedia.isVideo"
@@ -445,11 +472,9 @@
                         />
                         <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
 
-                        <!-- Tiefe + Lesbarkeit -->
                         <div class="absolute inset-0 bg-black/15" />
                         <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
-                        <!-- Bottom-left -->
                         <div class="absolute left-0 bottom-0 z-20 w-full p-5">
                           <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
                             {{ draft.title || 'Ohne Titel' }}
@@ -466,74 +491,124 @@
                       </div>
                     </div>
 
-                    <!-- Summary rechts: Hover-Glow wie Step 2 -->
-                    <div class="space-y-5 min-w-0">
-                      <!-- Titel -->
+                    <!-- Right: looks like CreateMarker (read-only inputs) -->
+                    <div class="space-y-6 min-w-0">
+                      <!-- Titel (read-only) -->
                       <div class="relative group isolate">
                         <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
                           <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
                           <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
                           <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
                         </div>
-                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5">
-                          <div class="text-xs text-white/45 mb-1">Titel</div>
-                          <div class="text-white/90">{{ draft.title || '—' }}</div>
+
+                        <div class="relative z-10 flex items-center rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                          <input
+                            :value="draft.title || ''"
+                            type="text"
+                            readonly
+                            placeholder="Titel"
+                            class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                          />
                         </div>
                       </div>
 
-                      <!-- Ort -->
+                      <!-- Ort (read-only) -->
                       <div class="relative group isolate">
                         <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
                           <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
                           <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
                           <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
                         </div>
-                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5">
-                          <div class="text-xs text-white/45 mb-1">Ort</div>
-                          <div class="text-white/90">{{ draft.placeName || '—' }}</div>
-                        </div>
-                      </div>
 
-                      <!-- Datum -->
-                      <div class="relative group isolate">
-                        <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
-                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                          <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-                        </div>
-                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5">
-                          <div class="text-xs text-white/45 mb-1">Datum</div>
-                          <div class="text-white/90">{{ draft.occurredAt || '—' }}</div>
-                        </div>
-                      </div>
-
-                      <!-- Beschreibung -->
-                      <div class="relative group isolate">
-                        <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
-                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                          <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-                        </div>
-                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5">
-                          <div class="text-xs text-white/45 mb-1">Beschreibung</div>
-                          <div class="text-white/90 whitespace-pre-wrap break-words max-h-48 overflow-auto evoc-scroll pr-1">
-                            {{ draft.description || '—' }}
+                        <div class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                          <div class="pl-1 pr-2 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
+                            </svg>
                           </div>
+
+                          <input
+                            :value="draft.placeName || ''"
+                            type="text"
+                            readonly
+                            placeholder="Ort"
+                            class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Datum + Trip (read-only) -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Datum -->
+                        <div class="relative group isolate">
+                          <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
+                            <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                            <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                            <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                          </div>
+
+                          <div class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                            <div class="pl-1 pr-2 text-gray-400">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/>
+                              </svg>
+                            </div>
+
+                            <input
+                              :value="draft.occurredAt ? dateDisplay : ''"
+                              type="text"
+                              readonly
+                              placeholder="Datum"
+                              class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- Trip -->
+                        <div class="relative group isolate">
+                          <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
+                            <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                            <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                            <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                          </div>
+
+                          <div class="relative z-10 flex items-center rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                            <input
+                              :value="selectedTripLabelOrHint || ''"
+                              type="text"
+                              readonly
+                              placeholder="Keinem Trip zugeordnet"
+                              class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Beschreibung (read-only) -->
+                      <div class="relative group isolate">
+                        <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
+                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                          <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                        </div>
+
+                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+          <textarea
+            :value="draft.description"
+            readonly
+            rows="7"
+            placeholder="Beschreibung"
+            class="block w-full bg-transparent border-none outline-none text-white placeholder-gray-500 text-base md:text-lg focus:ring-0 resize-none whitespace-pre-wrap"
+          />
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </div></div>
 
-          <div v-if="saving" class="absolute inset-0 z-[50] grid place-items-center bg-black/55 backdrop-blur-sm">
-            <div class="rounded-2xl bg-[#0b1228]/90 border border-white/15 px-6 py-5 text-center">
-              <div class="text-white/90 font-semibold">Deine Medien werden hochgeladen…</div>
-              <div class="text-white/60 text-sm mt-1">Bitte kurz warten</div>
-            </div>
-          </div>
 
           <!-- Bottom Actions (außerhalb der Card) -->
           <!-- Bottom Actions (außerhalb der Card) -->
@@ -592,6 +667,9 @@ import { normalizeMarkerImages } from '@/lib/markerImages'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
 import { primaryLabel } from '@/lib/reverseGeocode'
 import SavingOverlay from '@/components/SavingOverlay.vue'
+import { useTripStore } from '@/stores/TripStore'
+import { storeToRefs } from 'pinia'
+
 
 type Visibility = 'PRIVATE' | 'PUBLIC'
 type ImageLike =
@@ -606,6 +684,11 @@ type MarkerLike = {
   placeName?: string | null
   images?: ImageLike[]
   visibility?: Visibility | string | null
+
+  // Trip (kann je nach Backend-Shape anders heißen)
+  tripId?: number | string | null
+  trip_id?: number | string | null
+  trip?: { id?: number | string | null; title?: string | null } | null
 } | null
 
 const props = withDefaults(defineProps<{
@@ -620,8 +703,18 @@ const placeQuery = ref('') // Text in der GeoSearchBox
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'submit', data: { payload: UpdateMarkerPayload; files: File[] }): void
+  (e: 'submit', data: { payload: UpdateMarkerPayload; files: File[]; tripId: number | null }): void
 }>()
+
+function onSave() {
+  const { payload, files } = buildUpdatePayload()
+
+  emit('submit', {
+    payload,
+    files,
+    tripId: selectedTripId.value == null ? null : Number(selectedTripId.value),
+  })
+}
 
 const steps = ['Bilder', 'Details', 'Überprüfen']
 const step = ref(0)
@@ -689,6 +782,47 @@ function initFromMarker() {
   draft.lat = (props.marker as any)?.lat ?? draft.lat ?? 0
   draft.lng = (props.marker as any)?.lng ?? draft.lng ?? 0
 
+  const m: any = props.marker ?? {}
+
+  tripTitleHint.value = (m.trip?.title ?? '').trim() || null
+  draft.title = m?.title ?? ''
+  draft.placeName = m?.placeName ?? ''
+
+  console.group('[EditMarkerModal] FULL marker dump')
+  console.log('marker:', m)
+  console.log('marker keys:', m ? Object.keys(m) : null)
+  console.log('marker JSON:', JSON.stringify(m, null, 2))
+  console.groupEnd()
+
+  // versuche so viele mögliche Shapes wie sinnvoll
+  const rawTripId =
+    m.tripId ??
+    m.trip_id ??
+    m.trip?.id ??
+    m.trip?.tripId ??
+    m.tripID ??                 // manche APIs…
+    m.tripID_id ??              // …
+    m.attributes?.tripId ??      // falls API nested liefert
+    m.attributes?.trip_id ??
+    null
+
+  console.group('[EditMarkerModal] initFromMarker trip')
+  console.log('marker.id:', m?.id)
+  console.log('possible trip fields:', {
+    tripId: m?.tripId,
+    trip_id: m?.trip_id,
+    trip: m?.trip,
+    tripID: m?.tripID,
+    attributesTripId: m?.attributes?.tripId,
+    attributesTrip_id: m?.attributes?.trip_id,
+  })
+  console.log('rawTripId:', rawTripId, 'typeof:', typeof rawTripId)
+  console.groupEnd()
+
+  selectedTripId.value = rawTripId == null ? null : String(rawTripId)
+
+  // LOG: was steht danach im Model?
+  console.log('[EditMarkerModal] selectedTripId after set:', selectedTripId.value)
   placeQuery.value = draft.placeName || ''
 
   // Cleanup alte ObjectURLs (falls vorher Files hinzugefügt wurden)
@@ -717,31 +851,54 @@ function initFromMarker() {
   coverKey.value = draftImages.value[0]?.key ?? null
 }
 
-watch(
-  () => props.open,
-  async (o) => {
-    if (o) {
-      step.value = 0
-      initFromMarker()
-      await nextTick()
-      updateScrollState()
-    } else {
-      // Cleanup object urls on close
-      for (const it of draftImages.value) {
-        if (it.isObjectUrl) URL.revokeObjectURL(it.preview)
-      }
-    }
-  }
-)
-
 watch(() => props.open, async (o) => {
   if (o) {
     step.value = 0
+    if (!trips.value.length) await tripStore.loadTrips()
+
     initFromMarker()
+
+    // ✅ fallback wie StoryModal: Trip über Stops finden
+    if (selectedTripId.value == null && props.marker?.id) {
+      tripResolving.value = true
+      try {
+        const resolved = await resolveTripIdForMarker(Number(props.marker.id))
+        if (resolved != null) selectedTripId.value = String(resolved)
+      } finally {
+        tripResolving.value = false
+      }
+    }
+
     await nextTick()
     updateScrollHints()
+  } else {
+    for (const it of draftImages.value) {
+      if (it.isObjectUrl) URL.revokeObjectURL(it.preview)
+    }
   }
 })
+
+watch(
+  () => props.marker?.id,
+  async (id, oldId) => {
+    if (!props.open || !id) return
+    if (oldId != null && id === oldId) return   // ✅ nicht bei refresh gleicher ID
+
+    initFromMarker()
+    if (!trips.value.length) await tripStore.loadTrips()
+
+    if (selectedTripId.value == null) {
+      tripResolving.value = true
+      try {
+        const resolved = await resolveTripIdForMarker(Number(id))
+        if (resolved != null) selectedTripId.value = String(resolved)
+      } finally {
+        tripResolving.value = false
+      }
+    }
+  },
+  { immediate: true }
+)
 
 function pickFiles() {
   fileInput.value?.click()
@@ -808,16 +965,6 @@ const StepDot = defineComponent({
   `,
 })
 
-const SummaryField = defineComponent({
-  name: 'SummaryField',
-  props: { label: { type: String, required: true }, value: { type: String, required: true } },
-  template: `
-    <div class="rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5 shadow-xl shadow-fuchsia-900/20">
-      <div class="text-xs text-white/45 mb-1">{{ label }}</div>
-      <div class="text-white/90">{{ value }}</div>
-    </div>
-  `,
-})
 
 const showScrollLeft = ref(false)
 const showScrollRight = ref(false)
@@ -1043,10 +1190,122 @@ function buildUpdatePayload(): { payload: UpdateMarkerPayload; files: File[] } {
   return { payload, files }
 }
 
-function onSave() {
-  const { payload, files } = buildUpdatePayload()
-  emit('submit', { payload, files })
+
+const SummaryField = defineComponent({
+  name: 'SummaryField',
+  props: {
+    label: { type: String, required: true },
+    value: { type: [String, Number], default: '—' },
+    multiline: { type: Boolean, default: false },
+  },
+  template: `
+    <div class="relative group isolate">
+      <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
+        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+        <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+      </div>
+
+      <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5">
+        <div class="text-xs text-white/45 mb-1">{{ label }}</div>
+
+        <div
+          v-if="multiline"
+          class="text-white/90 whitespace-pre-wrap break-words max-h-48 overflow-auto evoc-scroll pr-1"
+        >{{ value }}</div>
+
+        <div v-else class="text-white/90">{{ value }}</div>
+      </div>
+    </div>
+  `,
+})
+
+const tripStore = useTripStore()
+const { trips, activeStopsSorted } = storeToRefs(tripStore)
+
+// WICHTIG: als String führen, damit <select> sauber matcht
+const selectedTripId = ref<string | null>(null)
+
+const tripOptions = computed(() => {
+  const opts = (trips.value ?? []).map(t => ({
+    id: String((t as any).id),
+    title: ((t as any).title ?? 'Ohne Titel'),
+  }))
+
+  return opts
+})
+
+const selectedTripLabel = computed(() => {
+  if (selectedTripId.value == null) return null
+  return tripOptions.value.find(t => t.id === selectedTripId.value)?.title ?? null
+})
+
+/** DEBUG LOGS **/
+function logTripState(tag: string) {
+  const id = selectedTripId.value
+  const ids = tripOptions.value.map(o => o.id)
+  const match = id != null ? ids.includes(id) : false
+
+  console.group(`[EditMarkerModal] ${tag}`)
+  console.log('selectedTripId:', id)
+  console.log('tripOptions.length:', tripOptions.value.length)
+  console.log('hasMatch:', match)
+  console.log('first 20 option ids:', ids.slice(0, 20))
+  console.log('selectedTripLabel:', selectedTripLabel.value)
+  console.groupEnd()
 }
+
+// Wenn Trips geladen/ändern → checken ob match da ist
+watch(
+  () => trips.value,
+  () => logTripState('trips changed'),
+  { deep: false }
+)
+
+// Wenn sich selectedTripId ändert → checken ob Vue es wieder “kaputtpatcht”
+watch(
+  () => selectedTripId.value,
+  (v, old) => {
+    console.log('[EditMarkerModal] selectedTripId changed:', old, '->', v)
+    logTripState('selectedTripId changed')
+  }
+)
+
+async function resolveTripIdForMarker(markerId: number): Promise<number | null> {
+  if (!markerId) return null
+  if (!trips.value?.length) await tripStore.loadTrips()
+
+  for (const t of (trips.value ?? []) as any[]) {
+    const id = Number(t?.id)
+    if (!id) continue
+
+    await tripStore.selectTrip(id)
+    if ((tripStore as any).loadStops) await (tripStore as any).loadStops(id)
+
+    const found = (activeStopsSorted.value ?? []).some(
+      (s: any) => Number(s.markerId) === Number(markerId)
+    )
+
+    if (found) return id
+  }
+
+  return null
+}
+
+const tripResolving = ref(false)
+
+
+const tripTitleHint = ref<string | null>(null)
+
+const selectedTripLabelOrHint = computed(() => {
+  if (tripResolving.value) return 'Lade Trip…'
+  return selectedTripLabel.value ?? tripTitleHint.value ?? null
+})
+
+const tripNullLabel = computed(() => {
+  if (tripResolving.value) return 'Lade Trip…'
+  return tripTitleHint.value ? `Trip: ${tripTitleHint.value}` : 'Keinem Trip zugeordnet'
+})
 
 </script>
 

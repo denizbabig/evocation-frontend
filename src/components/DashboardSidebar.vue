@@ -152,6 +152,46 @@
           </AppButton>
 
           <AppButton
+            :to="routes.marker"
+            :disabled="!isAuthenticated"
+            variant="secondary"
+            size="md"
+            class="w-full justify-start sidebar-btn"
+            :class="activeClass('/marker')"
+            @click="closeOnly"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
+                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 4h7v7H4V4zM13 4h7v4h-7V4zM13 10h7v10h-7V10zM4 13h7v7H4v-7z" />
+            </svg>
+            <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+              Marker
+            </span>
+            <span v-if="!isAuthenticated" class="ml-auto badge">Login nötig</span>
+          </AppButton>
+
+          <AppButton
+            :to="routes.trips"
+            :disabled="!isAuthenticated"
+            variant="secondary"
+            size="md"
+            class="w-full justify-start sidebar-btn"
+            :class="activeClass('/trips')"
+            @click="closeOnly"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
+                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M4 4h7v7H4V4zM13 4h7v4h-7V4zM13 10h7v10h-7V10zM4 13h7v7H4v-7z" />
+            </svg>
+            <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+              Trips
+            </span>
+            <span v-if="!isAuthenticated" class="ml-auto badge">Login nötig</span>
+          </AppButton>
+
+          <AppButton
             :to="routes.sharedLinks"
             :disabled="!isAuthenticated"
             variant="secondary"
@@ -337,7 +377,9 @@ const routes = {
   dashboard: '/dashboard',
   profile: '/profile',
   mapview: '/mapview',
-  sharedLinks: '/shared-links'
+  sharedLinks: '/shared-links',
+  trips: '/trips',
+  marker: '/marker'
 }
 
 function closeOnly() {

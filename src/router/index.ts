@@ -7,12 +7,15 @@ import AboutView from '@/views/AboutView.vue'
 import FeaturesView from '@/views/FeaturesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
-import DashboardView from '@/views/DashboardView.vue'
+import MarkersView from '@/views/MarkersView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import LoginCallbackView from '@/views/LoginCallbackView.vue'
 import sharedView from '@/views/sharedView.vue'
 import SavedSharedLinksView from "@/views/SavedSharedLinksView.vue";
 import DemoMapView from '@/views/DemoMapView.vue'
+import TripsView from "@/views/TripsView.vue";
+import TripDetailView from "@/views/TripDetailView.vue";
+import DashboardView from "@/views/DashboardView.vue";
 
 import { oktaAuth, loginRedirect } from '@/lib/oktaAuth'
 
@@ -30,7 +33,7 @@ const router = createRouter({
     { path: '/login/callback', name: 'login-callback', component: LoginCallbackView },
 
     // App views
-    { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
+    { path: '/markers', name: 'markers', component: MarkersView, meta: { requiresAuth: true } },
     { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
 
     // MapView (protected)
@@ -41,8 +44,11 @@ const router = createRouter({
     { path: '/shared/:code', name: 'shared', component: sharedView },
 
     { path: '/demo', name: 'demomap', component: DemoMapView },
-    {
-      path: '/shared-links', name: 'shared-links', component: SavedSharedLinksView, meta: { requiresAuth: true },}
+    {path: '/shared-links', name: 'shared-links', component: SavedSharedLinksView, meta: { requiresAuth: true }},
+    { path: '/trips', name: 'trips', component: TripsView},
+    { path: '/trips/:id', name: 'TripDetail', component: TripDetailView},
+    { path: '/marker', name: 'Marker', component: MarkersView},
+    { path: '/dashboard', name: 'Dashboard', component: DashboardView},
   ],
 })
 
