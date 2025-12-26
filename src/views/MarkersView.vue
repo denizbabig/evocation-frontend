@@ -233,32 +233,7 @@
 
     <DashboardSidebar :isOpen="isSidebarOpen" @close="isSidebarOpen = false" />
 
-    <!-- Optionales einmaliges Modal -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="showCard" class="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm" @click="showCard = false" />
-      </Transition>
-      <Transition name="fade-slide">
-        <div v-if="showCard" class="fixed inset-0 z-[1001] flex items-center justify-center p-4 pointer-events-none">
-          <BaseCard class="relative bg-[#1a233e]/90 border border-fuchsia-600/50 shadow-2xl shadow-fuchsia-900/40 max-w-lg w-full pointer-events-auto backdrop-blur-md p-8 text-center">
-            <button @click="showCard = false" class="absolute top-4 right-4 text-gray-400 hover:text-white transition">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-            <h3 class="text-3xl font-bold tracking-tight mb-4 bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-              Willkommen zurück!
-            </h3>
-            <p class="text-gray-300 mb-6">
-              Dein Dashboard wurde aktualisiert. Nutze die Suche, um deine Erinnerungen schneller zu finden.
-            </p>
-            <div class="flex justify-center">
-              <AppButton @click="showCard = false" variant="primary" size="md">Verstanden</AppButton>
-            </div>
-          </BaseCard>
-        </div>
-      </Transition>
-    </Teleport>
+
 
     <!-- Detail-Modal -->
     <MarkerStoryModal
@@ -326,7 +301,6 @@ import { MapPinIcon, CameraIcon, GlobeEuropeAfricaIcon } from '@heroicons/vue/24
 import ShareLinkModal from '@/components/ShareModal.vue'
 import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
 import MarkerEditModal from "@/components/MarkerEditModal.vue";
-import { updateMarkerMultipart } from '@/lib/markerApi'
 import {useTripStore} from "@/stores/TripStore.ts";
 
 const shellRef = ref<HTMLElement | null>(null)

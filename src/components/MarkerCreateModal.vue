@@ -111,11 +111,7 @@
                         <video v-else :src="p.previewUrl" class="h-full w-full object-cover" muted playsinline preload="metadata" />
 
                         <!-- Status -->
-                        <div class="absolute bottom-3 left-3 z-20 text-[11px] px-3 py-2 rounded-xl bg-black/45 border border-white/15 backdrop-blur">
-                          <span v-if="p.uploading">⚙️ Upload…</span>
-                          <span v-else-if="p.uploaded">✅ Uploaded</span>
-                          <span v-else>⏸️ Pending</span>
-                        </div>
+
 
                         <!-- Cover -->
                         <button
@@ -142,6 +138,7 @@
                           </svg>
                         </div>
                         <div class="text-white/70 text-sm">Medium hinzufügen</div>
+                        <div class="text-[11px] text-white/40">Upload passiert beim Speichern</div>
                       </button>
                     </div>
 
@@ -183,21 +180,9 @@
                   <div class="mt-6 max-w-xl mx-auto">
                     <p v-if="uploadError" class="mt-2 text-sm text-red-300 text-center">{{ uploadError }}</p>
 
-                    <AppButton
-                      type="button"
-                      variant="primary"
-                      class="w-full h-12 flex items-center justify-center"
-                      :disabled="!canUpload || busy"
-                      @click="uploadAll"
-                    >
-                      <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
-                        {{ uploading ? 'Hochladen…' : 'Medien hochladen' }}
-                      </span>
-                    </AppButton>
-
-                    <p v-if="pendingMedia.length && !allUploaded" class="mt-2 text-xs text-white/50 text-center">
-                      Hinweis: Wenn du Medien hinzugefügt hast, bitte erst hochladen, dann speichern.
-                    </p>
+                    <div v-if="pendingMedia.length && !allUploaded" class="mt-2 text-xs text-white/50 text-center">
+                      Hinweis: Medien werden erst beim Klick auf <b>Speichern</b> hochgeladen.
+                    </div>
                   </div>
                 </div>
 
@@ -234,8 +219,6 @@
                         />
                       </div>
                     </div>
-
-                    <!-- Optional: kleines Info-Row wenn ausgeblendet -->
 
                     <!-- Datum + Trip nebeneinander -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -288,8 +271,7 @@
                       </div>
                     </div>
 
-                    <!-- Kategorie + Visibility + Trip -->
-                    <!-- Kategorie + Visibility + Trip -->
+                    <!-- Kategorie + Visibility -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <!-- Kategorie -->
                       <div>
@@ -307,8 +289,6 @@
                             </select>
                           </div>
                         </div>
-
-
                       </div>
 
                       <!-- Visibility -->
@@ -324,19 +304,15 @@
                             </div>
 
                             <AppButton type="button" variant="secondary" size="md" class="h-11" :disabled="busy" @click="toggleVisibility">
-          <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-            Toggle
-          </span>
+                              <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+                                Toggle
+                              </span>
                             </AppButton>
                           </div>
                         </div>
-
-
                       </div>
-
-                      <!-- Trip (optional) -->
-
                     </div>
+
                     <!-- Beschreibung -->
                     <div class="relative group isolate">
                       <GlowInputShell />
@@ -350,9 +326,6 @@
                       </div>
                     </div>
 
-                    <div v-if="pendingMedia.length && !allUploaded" class="text-sm text-red-200/90 text-center">
-                      Du hast Medien hinzugefügt, aber noch nicht hochgeladen. Bitte erst hochladen (Step 1).
-                    </div>
                   </div>
                 </div>
 
@@ -401,8 +374,7 @@
                     <!-- Summary -->
                     <div class="space-y-5 min-w-0">
                       <SummaryBox label="Titel" :value="form.title?.trim() || '—'" />
-                      <SummaryBox label="Ort" :value="form.placeName || '—'" />
-                      <!-- Datum + Trip nebeneinander -->
+                      <SummaryBox label="Ort" :value="form.placeName || (placeLoading ? 'Ort wird ermittelt…' : '—')" />
                       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <SummaryBox label="Datum" :value="form.occurredAt || '—'" />
                         <SummaryBox label="Trip (optional)" :value="selectedTripLabel || '—'" />
@@ -411,13 +383,21 @@
                       <SummaryBox label="Sichtbarkeit" :value="form.visibility === 'PUBLIC' ? 'Öffentlich' : 'Privat'" />
                       <SummaryBox label="Beschreibung" :value="form.description || '—'" multiline />
 
-                      <div v-if="pendingMedia.length && !allUploaded" class="rounded-2xl bg-red-500/10 border border-red-400/20 px-4 py-3 text-sm text-red-200">
-                        Medien sind noch nicht hochgeladen. Bitte zurück zu Schritt 1 und „Medien hochladen“.
+                      <div v-if="uploadError" class="rounded-2xl bg-red-500/10 border border-red-400/20 px-4 py-3 text-sm text-red-200">
+                        {{ uploadError }}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+
+              <!-- optional loading overlay inside card -->
+              <div v-if="busy" class="absolute inset-0 bg-black/35 backdrop-blur-[2px] grid place-items-center">
+                <div class="rounded-2xl bg-white/10 border border-white/15 px-5 py-3 text-sm text-white/80">
+                  {{ uploading ? 'Upload…' : 'Speichern…' }}
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -442,7 +422,8 @@
                 </span>
               </AppButton>
 
-              <AppButton v-else :disabled="busy || !isValid || (pendingMedia.length > 0 && !allUploaded)" variant="primary" size="md" @click="onSubmit">
+              <!-- ✅ kein allUploaded-Block mehr -->
+              <AppButton v-else :disabled="busy || !isValid" variant="primary" size="md" @click="onSubmit">
                 <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
                   Speichern
                 </span>
@@ -551,7 +532,7 @@ const form = reactive<NewMarker>({
 
 const isValid = computed(() => !!form.title?.trim() && !!form.occurredAt)
 
-/** Media state (wie vorher) */
+/** Media state */
 const pendingMedia = ref<PendingMedia[]>([])
 const uploadError = ref<string | null>(null)
 const uploading = ref(false)
@@ -569,12 +550,6 @@ function clearPending() {
   uploadError.value = null
 }
 onBeforeUnmount(clearPending)
-
-const canUpload = computed(() =>
-  pendingMedia.value.length > 0 &&
-  pendingMedia.value.some(p => !p.uploaded) &&
-  !pendingMedia.value.some(p => p.uploading)
-)
 
 const allUploaded = computed(() =>
   pendingMedia.value.length > 0 && pendingMedia.value.every(p => !!p.uploaded)
@@ -649,22 +624,41 @@ function setCover(id: string) {
   for (const p of pendingMedia.value) p.isCover = p.id === id
 }
 
-/** Upload -> form.images setzen */
-async function uploadAll() {
+/** Upload (intern, wird beim Speichern aufgerufen) -> form.images setzen */
+async function uploadAllIfNeeded() {
   uploadError.value = null
+
+  if (pendingMedia.value.length === 0) {
+    form.images = []
+    return
+  }
+
+  const anyMissing = pendingMedia.value.some(p => !p.uploaded)
+  if (!anyMissing) {
+    // ensure order + images sync
+    const cover = pendingMedia.value.find(p => p.isCover)
+    const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter(p => p !== cover)]
+    for (let i = 0; i < ordered.length; i++) {
+      if (ordered[i].uploaded) ordered[i].uploaded!.order = i
+    }
+    form.images = ordered.map(p => p.uploaded).filter(Boolean) as ImageAsset[]
+    return
+  }
+
   uploading.value = true
 
   const cover = pendingMedia.value.find(p => p.isCover)
   const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter(p => p !== cover)]
 
-  for (let i = 0; i < ordered.length; i++) {
-    if (ordered[i].uploaded) ordered[i].uploaded!.order = i
-  }
-
   try {
     for (let i = 0; i < ordered.length; i++) {
       const p = ordered[i]
-      if (p.uploaded) continue
+
+      // wenn schon uploaded: nur order korrigieren
+      if (p.uploaded) {
+        p.uploaded.order = i
+        continue
+      }
 
       p.uploading = true
       p.error = null
@@ -675,7 +669,7 @@ async function uploadAll() {
       } catch (err: any) {
         p.error = err?.message ?? 'Upload fehlgeschlagen'
         uploadError.value = p.error
-        break
+        throw new Error(uploadError.value)
       } finally {
         p.uploading = false
       }
@@ -715,15 +709,20 @@ watch(
     form.visibility = 'PRIVATE'
     form.placeName = null
 
-    // trips fürs dropdown laden
     if (!trips.value.length) await tripStore.loadTrips()
 
-    // geolocation
+    // ✅ Wenn du aus Map-Click kommst (defaultLat/defaultLng), direkt Ort ermitteln
+    await resolvePlaceFromCoords()
+
+    // ⚠️ Geolocation kann deinen Map-Click überschreiben
+    // => In MapView am besten :useGeolocation="false" setzen
     if (props.useGeolocation && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        ({ coords }) => {
+        async ({ coords }) => {
           form.lat = coords.latitude
           form.lng = coords.longitude
+          // ✅ nach Geo-Update auch Ort ermitteln (falls placeName noch leer)
+          await resolvePlaceFromCoords()
         },
         () => {},
         { enableHighAccuracy: true, timeout: 4000 }
@@ -780,33 +779,33 @@ function toggleVisibility() {
 
 /** Step navigation */
 function nextStep() {
-  // kleine Guardrails
-  if (step.value === 1 && pendingMedia.value.length > 0 && !allUploaded.value) {
-    // nicht blocken, aber warnen wäre ok – hier blocken wir nicht.
-  }
   step.value = Math.min(2, step.value + 1)
 }
 
-/** Submit */
-function onSubmit() {
-  if (!isValid.value) return
+/** Submit (✅ lädt Medien automatisch hoch) */
+async function onSubmit() {
+  if (!isValid.value || busy.value) return
+  uploadError.value = null
 
-  if (pendingMedia.value.length && !allUploaded.value) {
-    uploadError.value = 'Bitte erst Medien hochladen (Schritt 1) oder entfernen.'
+  try {
+    // ✅ Upload passiert erst hier
+    await uploadAllIfNeeded()
+
+    emit('submit', {
+      marker: {
+        ...form,
+        title: form.title.trim(),
+        categoryId: form.categoryId ?? null,
+        images: form.images ?? [],
+        placeName: form.placeName?.trim() || null,
+      },
+      tripId: selectedTripId.value ?? null,
+    })
+  } catch (e: any) {
+    // ✅ bei Upload-Fehler zurück zu Step 1
+    uploadError.value = e?.message ?? uploadError.value ?? 'Upload fehlgeschlagen'
     step.value = 0
-    return
   }
-
-  emit('submit', {
-    marker: {
-      ...form,
-      title: form.title.trim(),
-      categoryId: form.categoryId ?? null,
-      images: form.images ?? [],
-      placeName: form.placeName?.trim() || null,
-    },
-    tripId: selectedTripId.value ?? null,
-  })
 }
 
 /** Scroll hints */
@@ -840,6 +839,7 @@ function scrollRight() {
   el.scrollBy({ left: 320, behavior: 'smooth' })
   requestAnimationFrame(updateScrollHints)
 }
+
 const GlowInputShell = defineComponent({
   name: 'GlowInputShell',
   setup() {
@@ -875,7 +875,6 @@ const SummaryBox = defineComponent({
   setup(props) {
     return () =>
       h('div', { class: 'relative group isolate' }, [
-        // glow
         h('div', { class: 'pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300' }, [
           h('div', {
             class:
@@ -887,8 +886,6 @@ const SummaryBox = defineComponent({
           }),
           h('div', { class: 'absolute inset-[1px] rounded-[14px] bg-[#0e162c]' }),
         ]),
-
-        // content
         h('div', { class: 'relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5' }, [
           h('div', { class: 'text-xs text-white/45 mb-1' }, props.label),
           props.multiline
@@ -903,7 +900,47 @@ const SummaryBox = defineComponent({
   },
 })
 
-/** Small helper components (inline) */
+const placeLoading = ref(false)
+let placeAbort: AbortController | null = null
+
+async function resolvePlaceFromCoords() {
+  if (!props.open) return
+  if (form.placeName?.trim()) return
+  if (!Number.isFinite(form.lat) || !Number.isFinite(form.lng)) return
+
+  placeAbort?.abort()
+  placeAbort = new AbortController()
+
+  placeLoading.value = true
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(form.lat))}&lon=${encodeURIComponent(String(form.lng))}`
+
+    const res = await fetch(url, {
+      signal: placeAbort.signal,
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) throw new Error('reverse geocode failed')
+
+    const data = await res.json()
+    const label = primaryLabel(data?.display_name ?? '')
+
+    if (label) {
+      form.placeName = label
+      placeQuery.value = label
+      // optional: wenn Titel leer, setz ihn auch
+      if (!form.title?.trim()) form.title = label
+    }
+  } catch (e: any) {
+    // ignore aborts, keep silent otherwise
+    if (e?.name !== 'AbortError') {
+      // optional fallback:
+      // form.placeName = `${form.lat.toFixed(5)}, ${form.lng.toFixed(5)}`
+    }
+  } finally {
+    placeLoading.value = false
+  }
+}
 
 </script>
 

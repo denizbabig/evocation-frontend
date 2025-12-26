@@ -223,7 +223,6 @@
                 </div>
 
                 <div class="mt-2 text-sm text-white/80 flex items-center justify-between gap-3">
-                  <span class="text-white/55">Erstellt: {{ formatDate(t.createdAt) }}</span>
 
                   <!-- Mini action: Map (keine fetten Buttons -> Dashboard-feel bleibt clean) -->
                   <button
@@ -288,69 +287,11 @@
     <DashboardSidebar :isOpen="isSidebarOpen" @close="isSidebarOpen = false" />
 
     <!-- Create Modal bleibt wie bei dir -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div
-          v-if="createOpen"
-          class="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm"
-          @click="closeCreate()"
-        />
-      </Transition>
-
-      <Transition name="fade-slide">
-        <div v-if="createOpen" class="fixed inset-0 z-[1001] flex items-center justify-center p-4 pointer-events-none">
-          <div class="pointer-events-auto w-full max-w-lg rounded-3xl border border-white/12 bg-[#141c34]/80 backdrop-blur-md p-7 shadow-2xl shadow-fuchsia-900/25">
-            <div class="flex items-start justify-between gap-4">
-              <h3 class="text-2xl font-bold tracking-tight">
-                <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                  Trip erstellen
-                </span>
-              </h3>
-
-              <button @click="closeCreate()" class="text-gray-300 hover:text-white transition">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            <p class="mt-2 text-sm text-gray-300/90">
-              Gib deinem Trip einen Titel. Stops/Route bauen wir direkt im nächsten Schritt.
-            </p>
-
-            <div class="mt-5">
-              <input
-                ref="titleInput"
-                v-model="newTitle"
-                type="text"
-                placeholder="z.B. China 2025"
-                class="w-full rounded-2xl bg-[#0b1228]/55 border border-white/10 px-5 py-3 text-white placeholder:text-white/40
-                       outline-none focus:border-fuchsia-500/50 transition"
-                @keydown.enter.prevent="submitCreate()"
-              />
-            </div>
-
-            <div class="mt-4">
-              <TripCoverPicker @change="onCreateCoverChange" />
-            </div>
-
-            <div class="mt-6 flex justify-end gap-3">
-              <AppButton variant="secondary" size="md" @click="closeCreate()">
-                <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                  Abbrechen
-                </span>
-              </AppButton>
-
-              <AppButton variant="primary" size="md" @click="submitCreate()">
-                <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
-                  Erstellen
-                </span>
-              </AppButton>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <TripCreateModal
+      :open="createOpen"
+      @close="closeCreate()"
+      @created="reload()"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -362,6 +303,8 @@ import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import gemini2 from '@/assets/gemini2.png'
 import { useTripStore } from '@/stores/TripStore'
 import TripCoverPicker from "@/components/TripCoverPicker.vue";
+import TripCreateModal from '@/components/TripCreateModal.vue'
+
 
 defineOptions({ name: 'TripsView' })
 
@@ -408,21 +351,17 @@ async function setActive(id: number) {
 }
 
 /** Create modal */
-const createOpen = ref(false)
 const newTitle = ref('')
 const titleInput = ref<HTMLInputElement | null>(null)
 
 const createCoverUrl = ref<string | null>(null)
 const createCoverPublicId = ref<string | null>(null)
 // ...
+const createOpen = ref(false)
+
 function openCreate() {
   createOpen.value = true
-  newTitle.value = ''
-  createCoverUrl.value = null
-  createCoverPublicId.value = null
-  nextTick(() => titleInput.value?.focus())
 }
-
 function closeCreate() {
   createOpen.value = false
 }
@@ -472,6 +411,7 @@ function onCreateCoverChange(p: { coverUrl: string | null; coverPublicId: string
   createCoverUrl.value = p.coverUrl
   createCoverPublicId.value = p.coverPublicId
 }
+
 
 </script>
 

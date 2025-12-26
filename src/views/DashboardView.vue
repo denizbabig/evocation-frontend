@@ -59,7 +59,7 @@
             @click="router.push('/markers')"
           >
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
-              → Marker öffnen
+              Deine Marker
             </span>
           </button>
 
@@ -69,7 +69,7 @@
             @click="router.push('/trips')"
           >
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
-              → Trips öffnen
+              Deine Trips
             </span>
           </button>
 
@@ -79,7 +79,7 @@
             @click="router.push('/mapview')"
           >
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
-              → Map öffnen
+              Deine Karte
             </span>
           </button>
         </div>
@@ -92,7 +92,6 @@
             <span class="w-2 h-8 rounded-full bg-gradient-to-b from-purple-400 via-fuchsia-300 to-indigo-400"></span>
             Overview
           </h2>
-          <div class="text-sm text-gray-400">Platzhalter · Logik kommt als nächstes</div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -353,7 +352,7 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import gemini2 from '@/assets/gemini2.png'
-
+import { apiFetch } from '@/lib/api'
 import { useTripStore } from '@/stores/TripStore'
 import { useMarkerStore } from '@/stores/MarkerStore'
 import { markerCover } from '@/lib/markerImages'
@@ -364,12 +363,53 @@ const router = useRouter()
 const isSidebarOpen = ref(false)
 
 /** Dummy Stats (nur das bleibt “dumm”) */
-const statCards = ref([
-  { label: 'Trips', value: '—', hint: 'Anzahl deiner Trips', icon: '🧳' },
-  { label: 'Marker', value: '—', hint: 'Orte in deiner Sammlung', icon: '📍' },
-  { label: 'Besuchte Länder', value: '—', hint: '(später via reverse geocode)', icon: '🌍' },
-  { label: 'Distanz', value: '—', hint: 'km (Route/Trip-based)', icon: '🛰️' },
-])
+type DashboardStats = {
+  markerCount?: number
+  markersThisYear?: number
+  totalDistanceKm?: number
+  favoriteCountry?: string
+}
+
+const statsLoading = ref(false)
+const statsError = ref<string | null>(null)
+const apiStats = ref<DashboardStats | null>(null)
+
+function thisYearFromMarker(m: any) {
+  const d = m?.occurredAt ?? m?.startDate ?? null
+  if (!d) return false
+  const y = Number(String(d).slice(0, 4))
+  return y === new Date().getFullYear()
+}
+
+function formatKm(v?: number | null) {
+  if (v == null || !Number.isFinite(v)) return '—'
+  // nice dashboard style: keine Nachkommastellen
+  return `${Math.round(v).toLocaleString('de-DE')} km`
+}
+
+const markerCountFallback = computed(() => (markers.value ?? []).length)
+const markersThisYearFallback = computed(
+  () => (markers.value ?? []).filter(thisYearFromMarker).length
+)
+
+/** 4 Stats: Marker, Distanz, Dieses Jahr, Lieblingsland */
+const statCards = computed(() => {
+  const markerCount = apiStats.value?.markerCount ?? markerCountFallback.value
+  const markersThisYear = apiStats.value?.markersThisYear ?? markersThisYearFallback.value
+
+  const distanceLabel =
+    apiStats.value?.totalDistanceKm != null ? formatKm(apiStats.value.totalDistanceKm) : '—'
+
+  const favorite =
+    (apiStats.value?.favoriteCountry && apiStats.value.favoriteCountry.trim()) ? apiStats.value.favoriteCountry : '—'
+
+  return [
+    { label: 'Marker', value: String(markerCount ?? 0), hint: 'Anzahl deiner Marker', icon: '📍' },
+    { label: 'Distanz', value: distanceLabel, hint: 'Summe aller Trip-Strecken', icon: '🛰️' },
+    { label: 'Dieses Jahr', value: String(markersThisYear ?? 0), hint: 'Marker in diesem Jahr', icon: '✨' },
+    { label: 'Lieblingsland', value: favorite, hint: 'Land mit den meisten Markern', icon: '🌍' },
+  ]
+})
 
 /** Stores */
 const tripStore = useTripStore()
@@ -383,6 +423,20 @@ onMounted(async () => {
     // Trips + Marker “echt” laden
     if (!trips.value.length) await tripStore.loadTrips()
     if (!markers.value.length) await markerStore.loadMarkers()
+
+    // Stats (Backend) – fällt automatisch auf Store-Fallback zurück, wenn es nicht klappt
+    statsLoading.value = true
+    statsError.value = null
+    try {
+      const data = await apiFetch('/dashboard')
+      apiStats.value = data?.stats ?? null
+    } catch (e: any) {
+      statsError.value = e?.message ?? 'Failed to load dashboard stats'
+      apiStats.value = null
+    } finally {
+      statsLoading.value = false
+    }
+
   } catch (e) {
     console.error('[Dashboard] load failed', e)
   }

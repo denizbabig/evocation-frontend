@@ -42,21 +42,16 @@
                focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
         aria-label="Sidebar schließen"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-6 w-6">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <XMarkIcon class="h-6 w-6" />
       </button>
 
       <!-- Header -->
       <div class="pt-5 text-center">
-
-
         <h2 class="mt-5 text-3xl font-black tracking-tight">
           <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
             Optionen
           </span>
         </h2>
-
         <p class="mt-2 text-sm text-gray-300">Wähle deinen Weg.</p>
       </div>
 
@@ -73,11 +68,7 @@
             :class="activeClass('/map')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-            </svg>
+            <PlayIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Live Demo testen
             </span>
@@ -91,11 +82,7 @@
             :class="activeClass('/')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M3 10.5 12 3l9 7.5V21a.75.75 0 0 1-.75.75H3.75A.75.75 0 0 1 3 21V10.5z" />
-            </svg>
+            <HomeIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Homepage
             </span>
@@ -119,12 +106,7 @@
             :class="activeClass('/mapview')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M9 20l-5 2V6l5-2 6 2 5-2v16l-5 2-6-2z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v16M15 6v16" />
-            </svg>
+            <MapIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Karte
             </span>
@@ -140,11 +122,7 @@
             :class="activeClass('/dashboard')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 4h7v7H4V4zM13 4h7v4h-7V4zM13 10h7v10h-7V10zM4 13h7v7H4v-7z" />
-            </svg>
+            <Squares2X2Icon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Dashboard
             </span>
@@ -160,11 +138,7 @@
             :class="activeClass('/marker')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 4h7v7H4V4zM13 4h7v4h-7V4zM13 10h7v10h-7V10zM4 13h7v7H4v-7z" />
-            </svg>
+            <MapPinIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Marker
             </span>
@@ -180,11 +154,7 @@
             :class="activeClass('/trips')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 4h7v7H4V4zM13 4h7v4h-7V4zM13 10h7v10h-7V10zM4 13h7v7H4v-7z" />
-            </svg>
+            <FolderIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Trips
             </span>
@@ -200,20 +170,10 @@
             :class="activeClass('/shared-links')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M13.5 6.75h3A2.25 2.25 0 0 1 18.75 9v8.25A2.25 2.25 0 0 1 16.5 19.5h-3" />
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M10.5 17.25h-3A2.25 2.25 0 0 1 5.25 15V6.75A2.25 2.25 0 0 1 7.5 4.5h3" />
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M8.25 12h7.5" />
-            </svg>
-
+            <LinkIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-    Geteilte Karten
-  </span>
-
+              Geteilte Karten
+            </span>
             <span v-if="!isAuthenticated" class="ml-auto badge">Login nötig</span>
           </AppButton>
 
@@ -226,20 +186,13 @@
             :class="activeClass('/profile')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20 21a8 8 0 0 0-16 0" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4z" />
-            </svg>
+            <UserCircleIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Mein Profil
             </span>
             <span v-if="!isAuthenticated" class="ml-auto badge">Login nötig</span>
           </AppButton>
         </div>
-
-
-
 
         <div class="my-5 h-px bg-white/10" />
 
@@ -257,11 +210,7 @@
             :class="activeClass('/features')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <SparklesIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Features
             </span>
@@ -275,13 +224,7 @@
             :class="activeClass('/about')"
             @click="closeOnly"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-fuchsia-300 mr-3">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 18h.01M11 10h1v5h-1z" />
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 22a10 10 0 1 0-10-10 10 10 0 0 0 10 10z" />
-            </svg>
+            <InformationCircleIcon :class="iconClass" />
             <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
               Über uns
             </span>
@@ -289,9 +232,7 @@
         </div>
       </nav>
 
-
-
-        <!-- Auth Aktionen -->
+      <!-- Auth Aktionen -->
       <div class="mt-6 border-t border-white/10 pt-5 space-y-3">
         <!-- login /register wenn nicht auth -->
         <div v-if="!isAuthenticated" class="space-y-3">
@@ -305,10 +246,7 @@
             <span class="mr-3 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
               Login
             </span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5"
-                 stroke="currentColor" class="h-5 w-5 text-indigo-700 transition-transform group-hover:translate-x-1">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
-            </svg>
+            <ArrowRightIcon class="h-5 w-5 text-indigo-700 transition-transform group-hover:translate-x-1" />
           </AppButton>
 
           <AppButton
@@ -336,12 +274,7 @@
           @click="onLogout"
         >
           <span class="mr-3">Logout</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-               class="h-5 w-5 text-red-200 transition-transform group-hover:translate-x-1">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10 17l-1 0a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 7l5 5-5 5"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H10"/>
-          </svg>
+          <ArrowRightOnRectangleIcon class="h-5 w-5 text-red-200 transition-transform group-hover:translate-x-1" />
           <span class="ml-4 text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-red-200/80">
             Okta
           </span>
@@ -356,6 +289,23 @@ import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logoutRedirect, oktaAuth } from '@/lib/oktaAuth'
 import AppButton from '@/components/AppButton.vue'
+import {
+  HomeIcon,
+  MapIcon,
+  Squares2X2Icon,
+  MapPinIcon,
+  FolderIcon,
+  LinkIcon,
+  UserCircleIcon,
+  SparklesIcon,
+  InformationCircleIcon,
+  ArrowRightOnRectangleIcon,
+  PlayIcon,
+  XMarkIcon,
+  ArrowRightIcon,
+} from '@heroicons/vue/24/outline'
+
+const iconClass = 'h-5 w-5 text-fuchsia-300 mr-3 shrink-0'
 
 const props = defineProps<{ isOpen: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void }>()

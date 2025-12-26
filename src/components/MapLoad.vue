@@ -47,7 +47,7 @@ const props = withDefaults(defineProps<{
   // ✅ NEU:
   routes?: Array<{ fromId: number; toId: number }>
 }>(), {
-  cluster: true,
+  cluster: false,
   routes: () => [],
 })
 

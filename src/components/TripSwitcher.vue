@@ -1,39 +1,23 @@
 <template>
-  <div class="absolute z-50 top-44 right-6 md:right-10">
+  <div class="relative">
     <!-- click-outside overlay -->
     <div v-if="open" class="fixed inset-0 z-40" @click="open = false" />
 
     <div class="relative z-50">
-      <!-- Button with gradient outline + glass -->
-      <div class="relative group isolate">
-        <!-- glow ring -->
-        <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-40 group-hover:opacity-70 transition duration-300">
-          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-          <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-        </div>
-
-        <button
-          @click.stop="open = !open"
-          class="relative z-10 h-11 px-4 rounded-2xl bg-[#111a33]/85 backdrop-blur-xl border border-white/15
-                 hover:border-white/25 transition shadow-lg shadow-black/30
-                 flex items-center gap-3"
-          :title="`Trip wählen (aktuell: ${label})`"
-        >
-          <span class="text-lg">🧳</span>
-
-          <div class="flex flex-col leading-tight">
-            <span class="text-[10px] text-white/45">Aktiver Trip</span>
-            <span
-              class="text-sm font-semibold max-w-[170px] truncate
-                     bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
-            >
-              {{ label }}
-            </span>
-          </div>
-
-          <span class="ml-1 text-xs text-white/60">▾</span>
-        </button>
-      </div>
+      <!-- Plain square button (NO glow here – glow comes from parent .evoc-ring in MapView) -->
+      <button
+        @click.stop="open = !open"
+        class="trip-btn"
+        :title="`Trip wählen (aktuell: ${label})`"
+        aria-label="Trip wählen"
+      >
+        <!-- Map/Trip icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5 2V6l5-2 6 2 5-2v16l-5 2-6-2Z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v16"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 6v16"/>
+        </svg>
+      </button>
 
       <!-- Dropdown -->
       <div
@@ -55,6 +39,9 @@
                 <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
                   Wähle deinen Trip
                 </span>
+              </div>
+              <div class="mt-1 text-[11px] text-white/45 truncate max-w-[240px]">
+                Aktiv: <span class="text-white/70">{{ label }}</span>
               </div>
             </div>
 
@@ -108,7 +95,6 @@
             @click="select(Number((t as any).id))"
           >
             <div class="flex items-center gap-3 min-w-0">
-              <!-- small badge pill -->
               <div
                 class="h-9 w-9 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center
                        group-hover:border-fuchsia-500/30 transition"
@@ -145,9 +131,8 @@
 
         <div class="h-px bg-white/10" />
 
-        <!-- Footer hint -->
         <div class="px-4 py-3 text-[11px] text-white/40">
-          Tipp: Im Route-Mode werden automatisch alle Marker angezeigt (zum Hinzufügen/Entfernen).
+          Tipp: Trip auswählen filtert deine Marker + Route automatisch.
         </div>
       </div>
     </div>
@@ -161,7 +146,7 @@ type TripLike = { id: number | string; title?: string; stopCount?: number }
 
 const props = defineProps<{
   trips: TripLike[]
-  selectedId: number | null // null = "Alle Marker"
+  selectedId: number | null
 }>()
 
 const emit = defineEmits<{
@@ -189,7 +174,30 @@ function create() {
 </script>
 
 <style scoped>
-/* nicer scrollbar like your pages */
+.trip-btn {
+  height: 44px;
+  width: 44px;
+  border-radius: 16px;
+  background: rgba(17, 26, 51, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 200ms;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.30);
+}
+
+.trip-btn:hover {
+  border-color: rgba(217, 70, 239, 0.40);
+  background: rgba(17, 26, 51, 0.95);
+}
+
+.trip-btn:active {
+  transform: translateY(1px);
+}
+
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }

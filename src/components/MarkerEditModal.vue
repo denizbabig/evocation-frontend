@@ -669,6 +669,8 @@ import { primaryLabel } from '@/lib/reverseGeocode'
 import SavingOverlay from '@/components/SavingOverlay.vue'
 import { useTripStore } from '@/stores/TripStore'
 import { storeToRefs } from 'pinia'
+import { uploadToCloudinary } from '@/lib/cloudinary'
+import type { ImageAsset } from '@/types/ImageAsset'
 
 
 type Visibility = 'PRIVATE' | 'PUBLIC'
@@ -701,19 +703,62 @@ const props = withDefaults(defineProps<{
 
 const placeQuery = ref('') // Text in der GeoSearchBox
 
+type UpdateMarkerPayloadCloudinary = {
+  title: string
+  placeName: string | null
+  occurredAt: string
+  description: string
+  lat: number
+  lng: number
+  images: ImageAsset[]
+  removedImageIds: Array<string | number>
+}
+
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'submit', data: { payload: UpdateMarkerPayload; files: File[]; tripId: number | null }): void
+  (e: 'submit', data: { payload: any; files: File[]; tripId: number | null }): void
 }>()
 
-function onSave() {
-  const { payload, files } = buildUpdatePayload()
+async function onSave() {
+  if (busy.value) return
+  uploadError.value = null
 
-  emit('submit', {
-    payload,
-    files,
-    tripId: selectedTripId.value == null ? null : Number(selectedTripId.value),
-  })
+  try {
+    const raw = (await uploadAllIfNeeded()) ?? []
+
+    // ✅ Wichtig: Backend-kompatibel machen
+    const images = raw.map((img: any, idx: number) => {
+      const url = img?.url ?? img?.secureUrl ?? img?.secure_url ?? null
+      const secureUrl = img?.secureUrl ?? img?.secure_url ?? img?.url ?? null
+
+      return {
+        ...img,
+        order: idx,          // ✅ order immer neu setzen
+        url,                 // ✅ NEU: url sicherstellen
+        secureUrl,           // ✅ secureUrl sicherstellen
+      }
+    })
+
+    const payload: UpdateMarkerPayloadCloudinary = {
+      title: String(draft.title ?? '').trim(),
+      placeName: String(draft.placeName ?? '').trim() || null,
+      occurredAt: draft.occurredAt,
+      description: String(draft.description ?? ''),
+      lat: Number(draft.lat),
+      lng: Number(draft.lng),
+      images, // ✅ jetzt mit url + secureUrl
+      removedImageIds: Array.from(removedExistingIds.value),
+    }
+
+    emit('submit', {
+      payload,
+      files: [], // ✅ bleibt leer (Cloudinary already done)
+      tripId: selectedTripId.value == null ? null : Number(selectedTripId.value),
+    })
+  } catch (e: any) {
+    uploadError.value = e?.message ?? uploadError.value ?? 'Upload fehlgeschlagen'
+    step.value = 0
+  }
 }
 
 const steps = ['Bilder', 'Details', 'Überprüfen']
@@ -731,7 +776,11 @@ const draft = reactive({
   lng: 0,
 })
 
+const uploading = ref(false)
+const uploadError = ref<string | null>(null)
 
+// ✅ statt "saving" überall lieber busy benutzen
+const busy = computed(() => !!props.saving || uploading.value)
 
 // interne Media-Shape
 type DraftMedia = {
@@ -747,6 +796,11 @@ type DraftMedia = {
 
   // new
   file?: File
+
+  // upload state (✅ neu)
+  uploading?: boolean
+  uploaded?: ImageAsset
+  error?: string | null
 
   // misc
   isObjectUrl?: boolean
@@ -909,19 +963,35 @@ async function onFiles(e: Event) {
   const files = Array.from(input.files ?? [])
   if (!files.length) return
 
+  const VIDEO_LIMIT = 2
+  const existingVideoCount = draftImages.value.filter(m => m.isVideo).length
+
+  let videosAdded = 0
+
   for (const f of files) {
+    const isVid = f.type.startsWith('video/')
+    if (isVid) {
+      if (existingVideoCount + videosAdded >= VIDEO_LIMIT) {
+        uploadError.value = `Du kannst aktuell maximal ${VIDEO_LIMIT} Videos pro Marker hinzufügen.`
+        continue
+      }
+      videosAdded++
+    }
+
     const url = URL.createObjectURL(f)
     draftImages.value.push({
       key: `file-${crypto.randomUUID?.() ?? Math.random()}`,
       preview: url,
-      isVideo: f.type.startsWith('video/'),
+      isVideo: isVid,
       kind: 'new',
       file: f,
       isObjectUrl: true,
+      uploading: false,
+      uploaded: undefined,
+      error: null,
     })
   }
 
-  // falls noch kein Cover gesetzt
   if (!coverKey.value && draftImages.value[0]) coverKey.value = draftImages.value[0].key
 
   input.value = ''
@@ -1306,6 +1376,87 @@ const tripNullLabel = computed(() => {
   if (tripResolving.value) return 'Lade Trip…'
   return tripTitleHint.value ? `Trip: ${tripTitleHint.value}` : 'Keinem Trip zugeordnet'
 })
+
+
+function orderedMedia(): DraftMedia[] {
+  // draftImages ist bereits "source of truth" Reihenfolge (Cover wird bei setCover nach vorne gezogen)
+  return [...draftImages.value]
+}
+
+function toImageAsset(m: DraftMedia, order: number): ImageAsset | null {
+  // existing (wir nehmen das, was wir haben)
+  if (m.kind === 'existing') {
+    const url = m.secureUrl || m.preview
+    if (!url) return null
+    return {
+      // @ts-ignore: hängt von deinem ImageAsset shape ab
+      id: m.imageId,
+      url,
+      secureUrl: url,
+      publicId: m.publicId,
+      order,
+    } as any
+  }
+
+  // new
+  if (m.uploaded) {
+    return { ...m.uploaded, order } as any
+  }
+
+  return null
+}
+
+async function uploadAllIfNeeded() {
+  uploadError.value = null
+
+  const ordered = orderedMedia()
+
+  // nichts neu? -> nur images sync + order setzen
+  const anyMissing = ordered.some(m => m.kind === 'new' && !m.uploaded)
+  if (!anyMissing) {
+    const images = ordered
+      .map((m, i) => toImageAsset(m, i))
+      .filter(Boolean) as ImageAsset[]
+    return images
+  }
+
+  uploading.value = true
+
+  try {
+    for (let i = 0; i < ordered.length; i++) {
+      const m = ordered[i]
+
+      if (m.kind !== 'new') continue
+      if (m.uploaded) {
+        m.uploaded.order = i
+        continue
+      }
+      if (!m.file) continue
+
+      m.uploading = true
+      m.error = null
+
+      try {
+        const asset = await uploadToCloudinary(m.file, { log: true, order: i })
+        m.uploaded = { ...asset, order: i } as any
+      } catch (err: any) {
+        m.error = err?.message ?? 'Upload fehlgeschlagen'
+        uploadError.value = m.error
+        throw new Error(uploadError.value)
+      } finally {
+        m.uploading = false
+      }
+    }
+
+    const images = ordered
+      .map((m, i) => toImageAsset(m, i))
+      .filter(Boolean) as ImageAsset[]
+
+    return images
+  } finally {
+    uploading.value = false
+  }
+}
 
 </script>
 
