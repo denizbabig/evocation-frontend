@@ -72,22 +72,29 @@
 </template>
 
 <script setup lang="ts">
+/* ----------------------------- Imports ----------------------------- */
 import { computed, ref, watch } from 'vue'
 import AppButton from '@/components/AppButton.vue'
 import { apiFetch } from '@/lib/api'
-import { createSavedShareLink } from '@/lib/api'
 
-const props = withDefaults(defineProps<{
-  modelValue: boolean
-}>(), {})
+/* ------------------------------ Props ------------------------------ */
+const props = withDefaults(
+  defineProps<{
+    modelValue: boolean
+  }>(),
+  {}
+)
 
+/* ------------------------------ Emits ------------------------------ */
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
   (e: 'created', item: any): void
 }>()
 
+/* ----------------------------- Computed ---------------------------- */
 const open = computed(() => props.modelValue)
 
+/* ------------------------------ State ------------------------------ */
 const API_BASE = '/share/saved'
 
 const input = ref('')
@@ -95,6 +102,7 @@ const name = ref('')
 const saving = ref(false)
 const error = ref<string | null>(null)
 
+/* ----------------------------- Handlers ---------------------------- */
 function close() {
   emit('update:modelValue', false)
 }
@@ -103,19 +111,20 @@ function onBackdrop() {
   close()
 }
 
+/**
+ * Optional helper (aktuell unbenutzt im Template).
+ * Lässt ihn drin, falls du später "nur Code" schicken willst.
+ */
 function extractCode(raw: string) {
   const s = raw.trim()
   if (!s) return ''
 
-  // full URL?
   try {
     const u = new URL(s)
     const parts = u.pathname.split('/').filter(Boolean)
-    // erwartet .../shared/{code}
-    const code = parts[parts.length - 1] ?? ''
+    const code = parts.at(-1) ?? ''
     return decodeURIComponent(code)
   } catch {
-    // treat as code
     return s
   }
 }
@@ -135,8 +144,8 @@ async function save() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        codeOrLink,                 // ✅ backend field
-        label: name.value?.trim() || null, // ✅ backend field
+        codeOrLink, // backend field
+        label: name.value.trim() || null, // backend field
       }),
     })
 
@@ -147,9 +156,11 @@ async function save() {
 
     const msg = String(e?.message ?? '')
 
-    // apiFetch wirft: "POST /share/saved 404: { ... "message":"Share code not found (or revoked)" ... }"
+    // apiFetch wirft z.B.:
+    // "POST /share/saved 404: { ... "message":"Share code not found (or revoked)" ... }"
     if (msg.includes('404') && (msg.includes('not found') || msg.includes('revoked'))) {
-      error.value = 'Dieser Share-Link ist nicht mehr gültig (wurde zurückgezogen oder existiert nicht). Bitte lass dir einen neuen Link schicken.'
+      error.value =
+        'Dieser Share-Link ist nicht mehr gültig (wurde zurückgezogen oder existiert nicht). Bitte lass dir einen neuen Link schicken.'
       return
     }
 
@@ -159,8 +170,9 @@ async function save() {
   }
 }
 
-watch(() => open.value, (o) => {
-  if (!o) return
+/* ------------------------------ Watch ------------------------------ */
+watch(open, (isOpen) => {
+  if (!isOpen) return
   input.value = ''
   name.value = ''
   error.value = null

@@ -14,10 +14,12 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
 
+/* Types */
 interface Props {
   to?: RouteLocationRaw
   href?: string
@@ -27,6 +29,7 @@ interface Props {
   type?: 'button' | 'submit' | 'reset'
 }
 
+/* Props */
 const props = withDefaults(defineProps<Props>(), {
   variant: 'primary',
   size: 'md',
@@ -34,6 +37,7 @@ const props = withDefaults(defineProps<Props>(), {
   type: 'button',
 })
 
+/* Computed */
 const tag = computed(() => {
   if (props.to) return RouterLink
   if (props.href) return 'a'
@@ -46,6 +50,7 @@ const bindProps = computed(() => {
   return { type: props.type }
 })
 
+/* UI maps */
 const variantClasses: Record<NonNullable<Props['variant']>, string> = {
   primary:
     'bg-white text-[#5a2fa3] border-2 border-gray shadow-lg shadow-purple-900/30 hover:scale-105 hover:shadow-[0_0_50px_-10px_rgba(255,255,255,0.6)]',

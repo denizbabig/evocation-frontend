@@ -45,6 +45,18 @@
                     @pause="isPlaying = false; stopRaf()"
                     @ended="isPlaying = false; stopRaf(); onEnded()"
                   />
+
+                  <!-- ✅ VIDEO-HINT: nur Play-Dreieck (nicht klickbar) -->
+                  <!-- ✅ VIDEO-HINT: Heroicon Play (nicht klickbar) -->
+                  <div
+                    v-if="displayIsVideo && !isPlaying"
+                    class="pointer-events-none absolute inset-0 z-20 grid place-items-center"
+                  >
+                    <div class="h-16 w-16 rounded-full bg-black/30 border border-white/15 backdrop-blur grid place-items-center">
+                      <PlayIcon class="h-10 w-10 text-white/90 translate-x-[1px]" />
+                    </div>
+                  </div>
+
                   <img
                     v-else
                     :src="displaySrc"
@@ -361,6 +373,7 @@ import AppButton from '@/components/AppButton.vue'
 import { normalizeMarkerImages } from '@/lib/markerImages'
 import { storeToRefs } from 'pinia'
 import { useTripStore } from '@/stores/TripStore'
+import { PlayIcon } from '@heroicons/vue/24/solid'
 
 type Visibility = 'PRIVATE' | 'PUBLIC'
 
@@ -676,6 +689,23 @@ async function toggleMarkerInTrip(targetTripId: number) {
 
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+watch(displaySrc, () => {
+  stopRaf()
+  videoDuration.value = 0
+  videoTime.value = 0
+
+  const v = videoEl.value
+  if (!v) {
+    isPlaying.value = false
+    return
+  }
+
+  v.pause()
+  v.currentTime = 0
+  isPlaying.value = false
+})
+
 </script>
 
 <style scoped>

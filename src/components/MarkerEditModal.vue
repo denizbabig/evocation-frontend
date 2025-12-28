@@ -106,10 +106,13 @@
                      h-[680px] max-h-[80dvh] flex flex-col"
             >
               <SavingOverlay
-                :open="!!saving"
+                :open="busy"
+                :items="overlayItems"
+                :videoExtraStep="true"
                 title="Speichere Änderungen…"
                 message="Deine Bilder und Videos laden gerade."
                 hint="Bitte Fenster nicht schließen."
+                :showSteps="false"
               />
 
               <!-- Step badge rechts oben -->
@@ -312,85 +315,110 @@
                 <div v-else-if="step === 1">
                   <h2 class="text-3xl font-semibold text-center">Details hinzufügen</h2>
                   <p class="text-center text-white/60 mt-2">Erzähle deine Geschichte</p>
-                <div class="mt-10 max-w-3xl mx-auto space-y-6">
+                  <div class="mt-10 max-w-3xl mx-auto space-y-6">
 
-                  <!-- Titel -->
-                  <div class="relative group isolate">
-                    <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                      <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-                    </div>
-
-                    <div class="relative z-10 flex items-center rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
-                      <input
-                        v-model="draft.title"
-                        type="text"
-                        placeholder="Titel"
-                        class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Ort -->
-                  <!-- Ort (GeoSearchBox) -->
-                  <div class="relative group isolate rounded-2xl z-100">
-                    <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                      <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-                    </div>
-
-                    <div class="relative z-30">
-                      <GeoSearchBox
-                        v-model="placeQuery"
-                        placeholder="Ort suchen und setzen…"
-                        :glow="false"
-                        @select="onSelectPlace"
-                        @search="onPlaceSearch"
-                        :shadow="false"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Datum -->
-                  <!-- Datum + Trip nebeneinander -->
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Datum -->
-                    <div class="relative group isolate" @click="openDatePicker">
+                    <!-- Titel -->
+                    <div class="relative group isolate">
                       <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
                         <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
                         <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
                         <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
                       </div>
 
-                      <div class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
-                        <div class="pl-1 pr-2 text-gray-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/>
-                          </svg>
+                      <div class="relative z-10 flex items-center rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                        <input
+                          v-model="draft.title"
+                          type="text"
+                          placeholder="Titel"
+                          class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Ort -->
+                    <!-- Ort (GeoSearchBox) -->
+                    <div class="relative group isolate rounded-2xl z-100">
+                      <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
+                        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                        <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                      </div>
+
+                      <div class="relative z-30">
+                        <GeoSearchBox
+                          v-model="placeQuery"
+                          placeholder="Ort suchen und setzen…"
+                          :glow="false"
+                          @select="onSelectPlace"
+                          @search="onPlaceSearch"
+                          :shadow="false"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Datum -->
+                    <!-- Datum + Trip nebeneinander -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <!-- Datum -->
+                      <div class="relative group isolate" @click="openDatePicker">
+                        <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
+                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                          <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                        </div>
+
+                        <div class="relative z-10 flex items-center gap-2 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                          <div class="pl-1 pr-2 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/>
+                            </svg>
+                          </div>
+
+                          <input
+                            :value="dateDisplay"
+                            type="text"
+                            readonly
+                            placeholder="Datum auswählen"
+                            class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0 cursor-pointer"
+                          />
                         </div>
 
                         <input
-                          :value="dateDisplay"
-                          type="text"
-                          readonly
-                          placeholder="Datum auswählen"
-                          class="flex-grow bg-transparent border-none outline-none text-white placeholder-gray-500 h-11 md:h-12 text-base md:text-lg focus:ring-0 cursor-pointer"
+                          ref="dateInput"
+                          v-model="draft.occurredAt"
+                          type="date"
+                          class="absolute inset-0 opacity-0 cursor-pointer [color-scheme:dark]"
+                          @click.stop
+                          aria-label="Datum auswählen"
                         />
                       </div>
 
-                      <input
-                        ref="dateInput"
-                        v-model="draft.occurredAt"
-                        type="date"
-                        class="absolute inset-0 opacity-0 cursor-pointer [color-scheme:dark]"
-                        @click.stop
-                        aria-label="Datum auswählen"
-                      />
+                      <!-- Trip -->
+                      <div class="relative group isolate">
+                        <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
+                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                          <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                          <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
+                        </div>
+
+                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                          <select
+                            v-model="selectedTripId"
+                            class="w-full bg-transparent border-none outline-none text-white h-11 md:h-12 text-base md:text-lg focus:ring-0"
+                            :disabled="tripResolving"
+                          >
+                            <option :value="null" class="bg-[#1a233e] text-gray-400">
+                              {{ tripNullLabel }}
+                            </option>
+                            <option v-for="t in tripOptions" :key="t.id" :value="t.id" class="bg-[#1a233e]">
+                              {{ t.title }}
+                            </option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
 
-                    <!-- Trip -->
+
                     <div class="relative group isolate">
                       <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
                         <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
@@ -399,40 +427,15 @@
                       </div>
 
                       <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
-                        <select
-                          v-model="selectedTripId"
-                          class="w-full bg-transparent border-none outline-none text-white h-11 md:h-12 text-base md:text-lg focus:ring-0"
-                          :disabled="tripResolving"
-                        >
-                          <option :value="null" class="bg-[#1a233e] text-gray-400">
-                            {{ tripNullLabel }}
-                          </option>
-                          <option v-for="t in tripOptions" :key="t.id" :value="t.id" class="bg-[#1a233e]">
-                            {{ t.title }}
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-
-                  <div class="relative group isolate">
-                    <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-300">
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                      <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                      <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-                    </div>
-
-                    <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
     <textarea
       v-model="draft.description"
       rows="7"
       placeholder="Beschreibung"
       class="block w-full bg-transparent border-none outline-none text-white placeholder-gray-500 text-base md:text-lg focus:ring-0 resize-none"
     />
+                      </div>
                     </div>
                   </div>
-                </div>
                 </div>
 
 
@@ -442,51 +445,77 @@
                   <p class="text-center text-white/60 mt-2">Alles sieht perfekt aus!</p>
 
                   <div class="mt-10 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 items-start">
-                    <!-- Preview card -->
-                    <div class="relative group isolate h-[400px] rounded-3xl">
-                      <!-- Glow (wie Inputs) -->
-                      <div
-                        class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-0 group-hover:opacity-100 transition duration-300"
-                      >
-                        <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                        <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                        <div class="absolute inset-[1px] rounded-[calc(1.5rem-1px)] bg-[#0e162c]" />
+                    <!-- LEFT COLUMN: Preview + Visibility Toggle -->
+                    <div class="space-y-4">
+                      <!-- Preview card -->
+                      <div class="relative group isolate h-[400px] rounded-3xl">
+                        <!-- Glow (wie Inputs) -->
+                        <div
+                          class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-0 group-hover:opacity-100 transition duration-300"
+                        >
+                          <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                          <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                          <div class="absolute inset-[1px] rounded-[calc(1.5rem-1px)] bg-[#0e162c]" />
+                        </div>
+
+                        <div class="relative z-10 h-[400px] overflow-hidden rounded-3xl bg-[#141c34]/60 backdrop-blur-md border border-white/10">
+                          <video
+                            v-if="coverMedia && coverMedia.isVideo"
+                            :src="coverMedia.preview"
+                            class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                            muted
+                            playsinline
+                            preload="metadata"
+                            loop
+                          />
+                          <img
+                            v-else-if="coverMedia"
+                            :src="coverMedia.preview"
+                            alt=""
+                            class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                            loading="lazy"
+                          />
+                          <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
+
+                          <div class="absolute inset-0 bg-black/15" />
+                          <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+                          <div class="absolute left-0 bottom-0 z-20 w-full p-5">
+                            <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
+                              {{ draft.title || 'Ohne Titel' }}
+                            </div>
+
+                            <div class="mt-2 flex items-center gap-2 text-sm text-white/80">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
+                              </svg>
+                              <span class="truncate">{{ draft.placeName || 'Ort unbekannt' }}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div class="relative z-10 h-[400px] overflow-hidden rounded-3xl bg-[#141c34]/60 backdrop-blur-md border border-white/10">
-                        <video
-                          v-if="coverMedia && coverMedia.isVideo"
-                          :src="coverMedia.preview"
-                          class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                          muted
-                          playsinline
-                          preload="metadata"
-                          loop
-                        />
-                        <img
-                          v-else-if="coverMedia"
-                          :src="coverMedia.preview"
-                          alt=""
-                          class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                          loading="lazy"
-                        />
-                        <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
+                      <!-- ✅ Visibility Toggle (direkt unter dem Cover, nur linke Spalte) -->
+                      <div class="w-full">
+                        <AppButton
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          class="w-full h-12"
+                          :disabled="busy"
+                          @click="toggleVisibility"
+                          :title="draft.visibility === 'PUBLIC' ? 'Klick: auf Privat stellen' : 'Klick: auf Öffentlich stellen'"
+                        >
+                          <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
+                            {{ draft.visibility === 'PUBLIC' ? 'Öffentlich' : 'Privat' }}
+                          </span>
+                        </AppButton>
 
-                        <div class="absolute inset-0 bg-black/15" />
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-
-                        <div class="absolute left-0 bottom-0 z-20 w-full p-5">
-                          <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
-                            {{ draft.title || 'Ohne Titel' }}
-                          </div>
-
-                          <div class="mt-2 flex items-center gap-2 text-sm text-white/80">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
-                            </svg>
-                            <span class="truncate">{{ draft.placeName || 'Ort unbekannt' }}</span>
-                          </div>
+                        <div class="mt-2 text-xs text-white/45 text-center">
+                          {{ draft.visibility === 'PUBLIC'
+                          ? 'Dieser Marker ist öffentlich sichtbar.'
+                          : 'Dieser Marker ist nur für dich sichtbar.' }}
                         </div>
                       </div>
                     </div>
@@ -607,8 +636,8 @@
                   </div>
                 </div>
               </div>
-            </div></div>
-
+            </div>
+          </div>
 
           <!-- Bottom Actions (außerhalb der Card) -->
           <!-- Bottom Actions (außerhalb der Card) -->
@@ -621,10 +650,10 @@
 
             <div class="flex items-center gap-4">
               <AppButton :disabled="saving"
-                v-if="step > 0"
-                variant="secondary"
-                size="md"
-                @click="step = step - 1"
+                         v-if="step > 0"
+                         variant="secondary"
+                         size="md"
+                         @click="step = step - 1"
               >
       <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
         Zurück
@@ -632,10 +661,10 @@
               </AppButton>
 
               <AppButton :disabled="saving"
-                v-if="step < 2"
-                variant="primary"
-                size="md"
-                @click="step = step + 1"
+                         v-if="step < 2"
+                         variant="primary"
+                         size="md"
+                         @click="step = step + 1"
               >
       <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent min-w-20">
         Weiter
@@ -643,10 +672,10 @@
               </AppButton>
 
               <AppButton :disabled="saving"
-                v-else
-                variant="primary"
-                size="md"
-                @click="onSave"
+                         v-else
+                         variant="primary"
+                         size="md"
+                         @click="onSave"
               >
   <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
     Speichern
@@ -673,7 +702,7 @@ import { uploadToCloudinary } from '@/lib/cloudinary'
 import type { ImageAsset } from '@/types/ImageAsset'
 
 
-type Visibility = 'PRIVATE' | 'PUBLIC'
+
 type ImageLike =
   | { id?: string | number; url?: string; secureUrl?: string; secure_url?: string; path?: string; order?: number | null }
   | string
@@ -712,6 +741,7 @@ type UpdateMarkerPayloadCloudinary = {
   lng: number
   images: ImageAsset[]
   removedImageIds: Array<string | number>
+  visibility: Visibility
 }
 
 const emit = defineEmits<{
@@ -746,8 +776,9 @@ async function onSave() {
       description: String(draft.description ?? ''),
       lat: Number(draft.lat),
       lng: Number(draft.lng),
-      images, // ✅ jetzt mit url + secureUrl
+      images,
       removedImageIds: Array.from(removedExistingIds.value),
+      visibility: draft.visibility, // ✅ NEU
     }
 
     emit('submit', {
@@ -767,6 +798,8 @@ const removedExistingIds = ref<Set<string | number>>(new Set())
 const fileInput = ref<HTMLInputElement | null>(null)
 const scrollEl = ref<HTMLDivElement | null>(null)
 
+type Visibility = 'PRIVATE' | 'PUBLIC'
+
 const draft = reactive({
   title: '',
   placeName: '',
@@ -774,6 +807,7 @@ const draft = reactive({
   description: '',
   lat: 0,
   lng: 0,
+  visibility: 'PRIVATE' as Visibility, // ✅ NEU
 })
 
 const uploading = ref(false)
@@ -847,6 +881,9 @@ function initFromMarker() {
   console.log('marker keys:', m ? Object.keys(m) : null)
   console.log('marker JSON:', JSON.stringify(m, null, 2))
   console.groupEnd()
+
+  const rawVis = String(m?.visibility ?? '').toUpperCase()
+  draft.visibility = rawVis === 'PUBLIC' ? 'PUBLIC' : 'PRIVATE'
 
   // versuche so viele mögliche Shapes wie sinnvoll
   const rawTripId =
@@ -1224,6 +1261,7 @@ type UpdateMarkerPayload = {
   existingImages: Array<{ id: string | number; order: number }>
   newImages: Array<{ clientKey: string; order: number; fileIndex: number }>
   removedImageIds: Array<string | number>
+  visibility: Visibility
 }
 
 function buildUpdatePayload(): { payload: UpdateMarkerPayload; files: File[] } {
@@ -1456,6 +1494,21 @@ async function uploadAllIfNeeded() {
   } finally {
     uploading.value = false
   }
+}
+
+const overlayItems = computed(() =>
+  draftImages.value
+    .filter(m => m.kind === 'new') // nur neue Uploads zählen (existing ist schon da)
+    .map(m => ({
+      uploading: !!m.uploading,
+      uploaded: m.uploaded,
+      error: m.error ?? null,
+      isVideo: !!m.isVideo,
+    }))
+)
+
+function toggleVisibility() {
+  draft.visibility = draft.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
 }
 
 </script>

@@ -46,13 +46,14 @@
             </div>
 
             <button
+              v-if="allowCreate"
               class="h-9 px-3 rounded-2xl bg-white/5 border border-white/10 hover:border-fuchsia-500/40 hover:bg-white/10 transition text-sm"
               @click="create()"
               title="Neuen Trip erstellen"
             >
-              <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
-                + Neu
-              </span>
+  <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
+    + Neu
+  </span>
             </button>
           </div>
 
@@ -147,7 +148,10 @@ type TripLike = { id: number | string; title?: string; stopCount?: number }
 const props = defineProps<{
   trips: TripLike[]
   selectedId: number | null
+  allowCreate?: boolean
 }>()
+
+const allowCreate = computed(() => props.allowCreate !== false)
 
 const emit = defineEmits<{
   (e: 'select', id: number | null): void

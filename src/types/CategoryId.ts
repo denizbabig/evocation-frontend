@@ -1,10 +1,19 @@
-export type CategoryId = 'SIGHT' | 'FOOD' | 'ACCOMMODATION' | 'NATURE' | 'SHOPPING' | 'OTHER';
+// frontend
+export type CategoryId =
+  | 'TRAVEL'
+  | 'FOOD'
+  | 'ADVENTURE'
+  | 'SPORT'
+  | 'CULTURE'
+  | 'SHOPPING'
+  | 'NATURE'
 
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
-  { id: 'SIGHT', label: 'Sight' },
-  { id: 'FOOD',  label: 'Essen' },
-  { id: 'ACCOMMODATION', label: 'Unterkunft' },
-  { id: 'NATURE', label: 'Natur' },
+  { id: 'TRAVEL', label: 'Reise' },
+  { id: 'FOOD', label: 'Essen' },
+  { id: 'ADVENTURE', label: 'Abenteuer' },
+  { id: 'SPORT', label: 'Sport' },
+  { id: 'CULTURE', label: 'Sightseeing/Kultur' },
   { id: 'SHOPPING', label: 'Shopping' },
-  { id: 'OTHER', label: 'Sonstiges' },
-];
+  { id: 'NATURE', label: 'Natur' },
+]

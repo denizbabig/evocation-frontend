@@ -98,28 +98,39 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import { nextTick, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  saving?: boolean
-}>(), { saving: false })
+/* Props / Emits */
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    saving?: boolean
+  }>(),
+  { saving: false }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', title: string): void
 }>()
 
+/* State */
 const title = ref('')
 const inputEl = ref<HTMLInputElement | null>(null)
 
-watch(() => props.open, async (o) => {
-  if (!o) return
-  title.value = ''
-  await nextTick()
-  inputEl.value?.focus()
-})
+/* Watchers */
+watch(
+  () => props.open,
+  async (isOpen) => {
+    if (!isOpen) return
+    title.value = ''
+    await nextTick()
+    inputEl.value?.focus()
+  }
+)
 
+/* Actions */
 function submit() {
   const t = title.value.trim()
   if (!t) return

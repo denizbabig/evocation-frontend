@@ -139,6 +139,18 @@
           </span>
         </button>
       </div>
+
+      <div class="evoc-ring">
+        <button
+          @click="shareModalOpen = true"
+          class="evoc-btn"
+          title="Share-Link erstellen"
+          aria-label="Share-Link erstellen"
+        >
+          <LinkIcon class="w-5 h-5" />
+        </button>
+      </div>
+
     </div>
 
     <!-- sidebar load -->
@@ -175,6 +187,8 @@
       @close="editOpen = false"
       @submit="onEditSubmit"
     />
+
+    <ShareLinkModal v-model="shareModalOpen" />
 
     <!-- credits :) -->
     <div class="fixed bottom-4 right-4 z-40">
@@ -232,6 +246,8 @@ import { useTripStore } from '@/stores/TripStore'
 import TripSwitcher from '@/components/TripSwitcher.vue'
 import CreateTripModal from '@/components/CreateTripModal.vue'
 import MarkerCreateModal from '@/components/MarkerCreateModal.vue'
+import { LinkIcon } from '@heroicons/vue/24/outline'
+import ShareLinkModal from '@/components/ShareModal.vue'
 
 defineOptions({ name: 'MapViewPage' })
 
@@ -243,7 +259,7 @@ const route = useRoute()
 
 const markerStore = useMarkerStore()
 const { markers, isSaving, draft } = storeToRefs(markerStore)
-
+const shareModalOpen = ref(false)
 const detailId = ref<string | number | null>(null)
 
 const activeDetail = computed(() => {
@@ -257,11 +273,16 @@ const detailOpen = ref(false)
 
 const mapRef = ref<InstanceType<typeof MapLoad> | null>(null)
 
-const categoryOptions = [
-  { id: 1, label: 'Reise' },
-  { id: 2, label: 'Essen' },
-  { id: 3, label: 'Sightseeing' },
-  { id: 4, label: 'Shopping' },
+import type { CategoryId } from '@/types/CategoryId'
+
+const categoryOptions: { id: CategoryId; label: string }[] = [
+  { id: 'TRAVEL',    label: 'Reise' },
+  { id: 'FOOD',      label: 'Essen' },
+  { id: 'CULTURE',   label: 'Sightseeing / Kultur' },
+  { id: 'SHOPPING',  label: 'Shopping' },
+  { id: 'NATURE',    label: 'Natur' },
+  { id: 'ADVENTURE', label: 'Abenteuer' },
+  { id: 'SPORT',     label: 'Sport' },
 ]
 
 function goHome() {
@@ -271,6 +292,34 @@ function goHome() {
 function onMapClick({ lat, lng }: { lat: number; lng: number }) {
   markerStore.startDraftFromMap(lat, lng)
 }
+
+function fitVisibleMarkers(padding = 96) {
+  const list = visibleMarkers.value
+  if (!list?.length) return
+
+  // 1 Marker => lieber flyTo als fitBounds
+  if (list.length === 1) {
+    const m = list[0]
+    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 6.5)
+    return
+  }
+
+  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
+  for (const m of list) {
+    const lat = Number((m as any).lat)
+    const lng = Number((m as any).lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    west = Math.min(west, lng)
+    south = Math.min(south, lat)
+    east = Math.max(east, lng)
+    north = Math.max(north, lat)
+  }
+
+  if (west === Infinity) return
+  mapRef.value?.fitBounds?.(west, south, east, north, padding)
+}
+
+
 
 const onZoomIn = () => mapRef.value?.zoomIn()
 const onZoomOut = () => mapRef.value?.zoomOut()
@@ -476,13 +525,18 @@ const routes = computed(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([markerStore.loadMarkers().catch(console.error), tripStore.loadTrips().catch(console.error)])
+  await Promise.all([
+    markerStore.loadMarkers().catch(console.error),
+    tripStore.loadTrips().catch(console.error),
+  ])
 
   await refreshAssignedMarkerIds()
 
   if (activeTripId.value && tripFilterId.value == null) {
     tripFilterId.value = Number(activeTripId.value)
     await tripStore.selectTrip(Number(activeTripId.value))
+    await nextTick()
+    fitVisibleMarkers()
   }
 
   await applyMapQuery()
@@ -496,8 +550,14 @@ const trips = computed(() => tripStore.trips ?? [])
 
 async function chooseTrip(id: number | null) {
   tripFilterId.value = id
-  if (id == null) return
-  await tripStore.selectTrip(id)
+
+  if (id != null) {
+    await tripStore.selectTrip(id)
+  }
+
+  // wichtig: erst render/update abwarten, dann bounds berechnen
+  await nextTick()
+  fitVisibleMarkers()
 }
 
 const assignedMarkerIdSet = ref<Set<number>>(new Set())

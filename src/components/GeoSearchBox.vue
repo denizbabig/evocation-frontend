@@ -45,7 +45,13 @@
           autocomplete="off"
         />
 
-        <AppButton variant="primary" class="shrink-0" :disabled="isSearching" @click="searchNow">
+        <AppButton
+          v-if="props.showSearchButton"
+          variant="primary"
+          class="shrink-0"
+          :disabled="isSearching"
+          @click="searchNow"
+        >
           <span v-if="!isSearching" class="bg-gradient-to-r from-purple-500 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">Suchen</span>
           <span v-else class="opacity-80 bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">Suche…</span>
         </AppButton>
@@ -124,7 +130,8 @@ const props = withDefaults(defineProps<{
   suggestLang?: string
   searchLimit?: number
   glow?: boolean
-  shadow?: boolean            // ✅ neu
+  shadow?: boolean
+  showSearchButton?: boolean   // ✅ neu
 }>(), {
   placeholder: 'Ort suchen',
   minChars: 3,
@@ -133,7 +140,8 @@ const props = withDefaults(defineProps<{
   suggestLang: 'de',
   searchLimit: 5,
   glow: true,
-  shadow: true,               // ✅ neu
+  shadow: true,
+  showSearchButton: true,      // ✅ neu
 })
 
 const emit = defineEmits<{

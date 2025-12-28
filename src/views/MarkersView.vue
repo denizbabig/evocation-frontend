@@ -18,21 +18,28 @@
     />
 
     <!-- NAV -->
-    <nav class="absolute top-0 left-0 w-full z-40 flex items-center justify-start p-6 md:px-12">
-      <div class="flex items-center gap-6">
-        <button
-          @click="isSidebarOpen = true"
-          class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
-          aria-label="Menü öffnen"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-          </svg>
-        </button>
-        <div class="flex items-center gap-2 select-none cursor-pointer" @click="$router.push('/')">
-          <span class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-            Evocation
-          </span>
+    <nav class="fixed top-0 left-0 w-full z-50">
+
+
+      <div class="relative flex items-center justify-start p-6 md:px-12">
+        <div class="flex items-center gap-6">
+          <button
+            @click="isSidebarOpen = true"
+            class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
+            aria-label="Menü öffnen"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+            </svg>
+          </button>
+
+          <div class="flex items-center gap-2 select-none cursor-pointer" @click="goDashboard">
+            <span
+              class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
+            >
+              Evocation
+            </span>
+          </div>
         </div>
       </div>
     </nav>
@@ -57,9 +64,21 @@
             placeholder="Ort suchen – oder Titel/Notiz filtern"
             @select="fillOnly"
             @search="searchFillOnly"
+            :showSearchButton="false"
           />
         </div>
       </header>
+
+      <!-- Share link (unter Suchleiste) -->
+      <div class="-mt-6 flex justify-center">
+        <AppButton variant="secondary" size="md" @click="shareModalOpen = true">
+    <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+      Link für öffentliche Map erstellen
+    </span>
+        </AppButton>
+
+        <ShareLinkModal v-model="shareModalOpen" />
+      </div>
 
       <!-- Sammlung -->
       <div class="w-full">
@@ -217,16 +236,6 @@
       </div>
     </main>
 
-    <div v-if="filteredMarkers.length" class="flex justify-center">
-      <AppButton @click="shareModalOpen = true" variant="secondary">
-        <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-          Link für öffentliche Map erstellen
-        </span>
-      </AppButton>
-
-      <ShareLinkModal v-model="shareModalOpen" />
-    </div>
-
     <span class="relative z-20 w-full mt-auto py-6 text-center text-xs text-gray-500">
       &copy; 2025 Evocation Systems. All rights reserved.
     </span>
@@ -278,69 +287,97 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from '@/components/AppButton.vue'
-import BaseCard from '@/components/BaseCard.vue'
-import DashboardSidebar from '@/components/DashboardSidebar.vue'
-import MarkerDetailModal from '@/components/MarkerDetailModal.vue'
-import GeoSearchBox from '@/components/GeoSearchBox.vue'
-import {ref, computed, onMounted, nextTick, watch, onBeforeUnmount} from 'vue'
-import { useRouter } from 'vue-router'
+/* ----------------------------- Imports ----------------------------- */
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMarkerStore } from '@/stores/MarkerStore'
+import { useRouter } from 'vue-router'
+
+import AppButton from '@/components/AppButton.vue'
+import DashboardSidebar from '@/components/DashboardSidebar.vue'
+import GeoSearchBox from '@/components/GeoSearchBox.vue'
 import MarkerCreateModal from '@/components/MarkerCreateModal.vue'
-import type { NewMarker } from '@/types/Marker'
-import GlobeBg from '@/assets/globe-bg.png'
-import gemini1 from '@/assets/gemini1.png'
+import MarkerEditModal from '@/components/MarkerEditModal.vue'
+import MarkerStoryModal from '@/components/MarkerStoryModal.vue'
+import ShareLinkModal from '@/components/ShareModal.vue'
+
 import gemini2 from '@/assets/gemini2.png'
+
+import { useMarkerStore } from '@/stores/MarkerStore'
+import { useTripStore } from '@/stores/TripStore'
 import { apiFetch } from '@/lib/api'
-import type { Visibility } from '@/types/Marker'
 import { markerCover } from '@/lib/markerImages'
 import { reversePlaceName } from '@/lib/reverseGeocode'
-// Icons
-import { MapPinIcon, CameraIcon, GlobeEuropeAfricaIcon } from '@heroicons/vue/24/outline'
-import ShareLinkModal from '@/components/ShareModal.vue'
-import MarkerStoryModal from "@/components/MarkerStoryModal.vue";
-import MarkerEditModal from "@/components/MarkerEditModal.vue";
-import {useTripStore} from "@/stores/TripStore.ts";
 
-const shellRef = ref<HTMLElement | null>(null)
+import type { NewMarker } from '@/types/Marker'
+import type { CategoryId } from '@/types/CategoryId'
 
-const shareModalOpen = ref(false)
+import { CameraIcon, GlobeEuropeAfricaIcon, MapPinIcon } from '@heroicons/vue/24/outline'
+
 defineOptions({ name: 'MarkersView' })
 
+/* ------------------------ Constants / Catalog ----------------------- */
+// gleiche Options wie MapView
+const categoryOptions: { id: CategoryId; label: string }[] = [
+  { id: 'TRAVEL', label: 'Reise' },
+  { id: 'FOOD', label: 'Essen' },
+  { id: 'CULTURE', label: 'Sightseeing / Kultur' },
+  { id: 'SHOPPING', label: 'Shopping' },
+  { id: 'NATURE', label: 'Natur' },
+  { id: 'ADVENTURE', label: 'Abenteuer' },
+  { id: 'SPORT', label: 'Sport' },
+]
+
+const categoryLabelMap: Record<CategoryId, string> = {
+  TRAVEL: 'Reise',
+  FOOD: 'Essen',
+  CULTURE: 'Sightseeing / Kultur',
+  SHOPPING: 'Shopping',
+  NATURE: 'Natur',
+  ADVENTURE: 'Abenteuer',
+  SPORT: 'Sport',
+}
+
+const categoryIconMap: Record<CategoryId, any> = {
+  TRAVEL: GlobeEuropeAfricaIcon,
+  FOOD: MapPinIcon,
+  CULTURE: CameraIcon,
+  SHOPPING: MapPinIcon,
+  NATURE: GlobeEuropeAfricaIcon,
+  ADVENTURE: CameraIcon,
+  SPORT: MapPinIcon,
+}
+
+/* ----------------------- External dependencies ---------------------- */
 const router = useRouter()
-const isSidebarOpen = ref(false)
-const showCard = ref(true)
-const searchQuery = ref('') // wird von GeoSearchBox gebunden
-const lastGeoPick = ref<{ lat:number; lon:number; display_name:string } | null>(null)
-
-// Store: echte Marker laden
 const markerStore = useMarkerStore()
+const tripStore = useTripStore()
 const { markers, isLoading, isSaving } = storeToRefs(markerStore)
-onMounted(() => { markerStore.loadMarkers().catch(console.error) })
 
-// Anzeige-Helfer (Labels & Icons; keine Farben/Gradients)
-const categoryLabelMap: Record<number, string> = {
-  1: 'Reise', 2: 'Essen', 3: 'Sightseeing', 4: 'Shopping',
-}
-const categoryIconMap: Record<number, any> = {
-  1: GlobeEuropeAfricaIcon,
-  2: MapPinIcon,
-  3: CameraIcon,
-  4: MapPinIcon,
-}
+/* ------------------------------ State ------------------------------ */
+const isSidebarOpen = ref(false)
+const searchQuery = ref('')
 
-function formatDate(isoYmd?: string | null) {
-  if (!isoYmd) return '—'
-  const [y, m, d] = isoYmd.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1))
-  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }).format(dt)
-}
+const shareModalOpen = ref(false)
+const shareLink = ref<string | null>(null)
 
-// UI-Projection der Store-Marker
+const createOpen = ref(false)
+
+const detailOpen = ref(false)
+const detailId = ref<string | number | null>(null)
+
+const editOpen = ref(false)
+const editId = ref<number | null>(null)
+const editSaving = ref(false)
+
+/* ----------------------------- Lifecycle ---------------------------- */
+onMounted(() => {
+  markerStore.loadMarkers().catch(console.error)
+})
+
+/* ----------------------------- Computed ----------------------------- */
 const uiMarkers = computed(() => {
   return markers.value.map(m => {
-    const cid = (m.categoryId as number | null) ?? null
+    const cid = (m.categoryId as CategoryId | null) ?? null
     return {
       ...m,
       categoryLabel: cid ? categoryLabelMap[cid] : 'Ohne Kategorie',
@@ -351,10 +388,10 @@ const uiMarkers = computed(() => {
   })
 })
 
-// Text-Filter (lokal)
 const filteredMarkers = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return uiMarkers.value
+
   return uiMarkers.value.filter(m =>
     (m.title ?? '').toLowerCase().includes(q) ||
     (m.description ?? '').toLowerCase().includes(q) ||
@@ -362,84 +399,56 @@ const filteredMarkers = computed(() => {
   )
 })
 
-/* Detail-Modal State + Actions */
-const detailOpen = ref(false)
-const detailId = ref<string | number | null>(null)
-
 const activeDetail = computed(() => {
   if (detailId.value == null) return null
   return uiMarkers.value.find(m => String(m.id) === String(detailId.value)) ?? null
 })
 
+const activeMarker = computed(() => {
+  if (editId.value == null) return null
+  return uiMarkers.value.find(m => Number(m.id) === Number(editId.value)) ?? null
+})
+
+/* ----------------------------- Navigation ---------------------------- */
+function goDashboard() {
+  router.push('/').catch(() => {})
+}
+
+/* --------------------------- Detail / Edit -------------------------- */
 function openDetail(id: string | number) {
   detailId.value = id
   detailOpen.value = true
 }
+
 function handleOpenOnMap(id: number) {
   detailOpen.value = false
   router.push({ path: '/map', query: { focus: String(id) } })
 }
+
 function handleEdit(id: number) {
   detailOpen.value = false
   editId.value = id
   editOpen.value = true
 }
 
-async function handleEditSubmit(payload: any) {
-  console.log('EDIT SUBMIT payload:', payload)
-
-  // TODO: später: API call / store.updateMarker(...)
-  // await markerStore.updateMarker(payload)
-
-  editOpen.value = false
-  editId.value = null
-
-  // optional: refresh
-  // await markerStore.loadMarkers()
-}
-
 async function handleDelete(id: number) {
   try {
-    await markerStore.deleteMarker(id)   // ✅ ruft /api/markers/:id → Backend löscht auch Cloudinary
+    await markerStore.deleteMarker(id)
     detailOpen.value = false
     detailId.value = null
   } catch (e) {
-    console.error('[Dashboard] delete failed', e)
+    console.error('[MarkersView] delete failed', e)
   }
 }
 
-/* GeoSearchBox Events
-   - select: wähle Vorschlag -> zur Map springen (optional)
-   - search: Enter/Button -> wenn Treffer vorhanden, ebenfalls zur Map; sonst bleibt der Text als Filter hier im Dashboard
-*/
-function onGeoSelect(s: { lat: number; lon: number; display_name: string }) {
-  // Optional: gleich zur Map und zentrieren
-  router.push({ path: '/map', query: { goto: `${s.lat},${s.lon}`, zoom: '11' } })
-}
-
-function onGeoSearch(payload: { query: string; results: Array<{ lat: string; lon: string }>; best?: { lat: string; lon: string } }) {
-  // Immer den Text als lokalen Filter setzen
-  searchQuery.value = payload.query
-  // Wenn es einen „besten“ Treffer gibt -> Map öffnen und dorthin springen
-  if (payload.best) {
-    const lat = Number(payload.best.lat)
-    const lon = Number(payload.best.lon)
-    router.push({ path: '/map', query: { goto: `${lat},${lon}`, zoom: '10' } })
-  }
-}
-
-const createOpen = ref(false)
-
-
-// Nur ins Feld übernehmen – KEIN Routing, kein flyTo
+/* ----------------------------- GeoSearch ---------------------------- */
+// Nur ins Feld übernehmen – kurz & clean
 function primaryLabel(name: string) {
-  // Split an üblichen Trennern: Komma, Gedankenstrich, Bindestrich, Pipe, Punkt-Mittig
   const parts = name
     .split(/[,\u2013\u2014\-|·]+/g)
     .map(s => s.trim())
     .filter(Boolean)
 
-  // Doppelte entfernen (Italien - Italien)
   const seen = new Set<string>()
   const uniq = parts.filter(p => {
     const k = p.toLowerCase()
@@ -451,114 +460,48 @@ function primaryLabel(name: string) {
   return uniq[0] || name.trim()
 }
 
-// Nur ins Feld übernehmen – kurz & clean
-function fillOnly(s: { lat:number; lon:number; display_name:string }) {
-  searchQuery.value = primaryLabel(s.display_name) // 👈 bereinigt
-  lastGeoPick.value = s
+function fillOnly(s: { lat: number; lon: number; display_name: string }) {
+  searchQuery.value = primaryLabel(s.display_name)
 }
 
-// Optional: Enter/„Suchen“-Button → auch nur Feld/State setzen
 function searchFillOnly(payload: {
   query: string
-  results: Array<{ lat:string; lon:string; display_name?: string }>
-  best?: { lat:string; lon:string; display_name?: string }
+  results: Array<{ lat: string; lon: string; display_name?: string }>
+  best?: { lat: string; lon: string; display_name?: string }
 }) {
   searchQuery.value = payload.query
-  if (payload.best) {
-    lastGeoPick.value = {
-      lat: Number(payload.best.lat),
-      lon: Number(payload.best.lon),
-      display_name: payload.best.display_name ?? payload.query
-    }
-  }
-  // kein router.push(), kein mapRef.flyTo() hier!
 }
 
-const shareLink = ref<string | null>(null)
+/* ------------------------------ Create ------------------------------ */
+type CreateSubmitPayload = { marker: NewMarker; tripId: number | null }
 
-// Function to call backend and generate share link
-const generateShareLink = async () => {
+async function saveMarker({ marker, tripId }: CreateSubmitPayload) {
   try {
-    const data = await apiFetch('/share', { method: 'POST' })
-    shareLink.value = `${window.location.origin}/shared/${data.code}`
-  } catch (e) {
-    console.error('Error generating share link:', e)
-  }
-}
+    const title = (marker.title ?? '').trim()
+    const lat = Number(marker.lat)
+    const lng = Number(marker.lng)
 
-const copyLink = async () => {
-  if (!shareLink.value) return
-  try {
-    await navigator.clipboard.writeText(shareLink.value)
-    // optional nicer als alert: später Toast
-    alert('Link kopiert!')
-  } catch (e) {
-    console.error('Failed to copy link:', e)
-  }
-}
-const savingVisibility = ref(false)
-
-async function onSetVisibility({ id, visibility }: { id: number; visibility: 'PRIVATE'|'PUBLIC' }) {
-  savingVisibility.value = true
-  try {
-    await apiFetch(`/markers/${id}/visibility`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visibility }),
-    })
-    await markerStore.loadMarkers() // oder marker lokal updaten
-  } finally {
-    savingVisibility.value = false
-  }
-}
-
-function coverCard(m: any): string | null {
-  try {
-    return markerCover(m)?.card ?? null
-  } catch {
-    return null
-  }
-}
-
-function markerLocation(m: any): string {
-  // nutzt was du evtl. schon hast – sonst fallback ohne Koordinaten
-  return (
-    m.placeName ||
-    m.location ||
-    m.address ||
-    m.city ||
-    'Ort unbekannt'
-  )
-}
-
-async function saveCreatedMarker(data: NewMarker) {
-  try {
-    const title = (data.title ?? '').trim()
-    const lat = Number(data.lat)
-    const lng = Number(data.lng)
-
-    // Quick guard (hilft sofort beim Debuggen)
     if (!title || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      console.warn('[Dashboard] invalid payload before POST', { data, title, lat, lng })
+      console.warn('[MarkersView] invalid marker payload before POST', { marker, title, lat, lng })
       return
     }
 
-    const withPlace: NewMarker = { ...data }
+    const withPlace: NewMarker = { ...marker }
     if (!withPlace.placeName || !withPlace.placeName.trim()) {
       withPlace.placeName = await reversePlaceName(lat, lng)
     }
 
-    // ✅ Backend DTO
+    // Backend erwartet startDate (nicht occurredAt)
     const body = {
       title,
       description: withPlace.description ?? '',
       categoryId: withPlace.categoryId ?? null,
-      startDate: withPlace.occurredAt,          // 🔥 wichtig
+      startDate: withPlace.occurredAt, // ✅ mapping
       lat,
       lng,
-      visibility: withPlace.visibility ?? 'PRIVATE',
+      visibility: (withPlace as any).visibility ?? 'PRIVATE',
       placeName: withPlace.placeName ?? null,
-      images: withPlace.images ?? [],
+      images: (withPlace as any).images ?? [],
     }
 
     const created = await apiFetch('/markers', {
@@ -567,27 +510,111 @@ async function saveCreatedMarker(data: NewMarker) {
       body: JSON.stringify(body),
     })
 
+    if (tripId != null) {
+      await tripStore.selectTrip(tripId)
+      await tripStore.addStop(created.id)
+      await tripStore.loadTrips()
+    }
+
     await markerStore.loadMarkers()
     detailId.value = created.id
     detailOpen.value = true
   } catch (e) {
-    console.error('[Dashboard] create failed', e)
+    console.error('[MarkersView] create failed', e)
   } finally {
     createOpen.value = false
   }
 }
 
+/* ------------------------------- Edit ------------------------------ */
+async function onEditSubmit({ payload }: { payload: any; files: File[]; tripId: number | null }) {
+  if (!activeMarker.value?.id) return
+
+  editSaving.value = true
+  try {
+    const id = Number(activeMarker.value.id)
+
+    await updateMarker(id, payload)
+
+    // Visibility separat (falls dein Backend /markers/{id} sie nicht übernimmt)
+    if (payload.visibility) {
+      await apiFetch(`/markers/${id}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: payload.visibility }),
+      })
+    }
+
+    await markerStore.loadMarkers()
+    editOpen.value = false
+    editId.value = null
+  } finally {
+    editSaving.value = false
+  }
+}
+
+function updateMarker(id: number, payload: any) {
+  const body = {
+    title: payload.title,
+    description: payload.description ?? '',
+    categoryId: payload.categoryId ?? null,
+
+    // EditModal liefert occurredAt -> Backend braucht startDate
+    startDate: payload.occurredAt ?? payload.startDate ?? null,
+    lat: Number(payload.lat),
+    lng: Number(payload.lng),
+
+    visibility: payload.visibility ?? 'PRIVATE',
+    placeName: payload.placeName ?? null,
+
+    images: payload.images ?? [],
+    removedImageIds: payload.removedImageIds ?? [],
+  }
+
+  return apiFetch(`/markers/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+/* ------------------------------- Share ------------------------------ */
+// optional: falls du shareLink unten noch nutzt
+async function generateShareLink() {
+  try {
+    const data = await apiFetch('/share', { method: 'POST' })
+    shareLink.value = `${window.location.origin}/shared/${data.code}`
+  } catch (e) {
+    console.error('[MarkersView] generate share link failed', e)
+  }
+}
+
+async function copyLink() {
+  if (!shareLink.value) return
+  try {
+    await navigator.clipboard.writeText(shareLink.value)
+    alert('Link kopiert!')
+  } catch (e) {
+    console.error('[MarkersView] copy failed', e)
+  }
+}
+
+/* ------------------------------ Utils ------------------------------ */
+function formatDate(isoYmd?: string | null) {
+  if (!isoYmd) return '—'
+  const [y, m, d] = isoYmd.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1))
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }).format(dt)
+}
+
 function daysAgoLabel(isoYmd?: string | null) {
   if (!isoYmd) return '—'
-
   const [y, m, d] = String(isoYmd).split('-').map(Number)
   if (!y || !m || !d) return '—'
 
-  // UTC-Datum aus ISO (damit Zeitzonen nicht “einen Tag klauen”)
   const then = new Date(Date.UTC(y, m - 1, d))
   const now = new Date()
   const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-
   const diffDays = Math.floor((todayUtc.getTime() - then.getTime()) / 86400000)
 
   if (diffDays <= 0) return 'Heute'
@@ -617,103 +644,10 @@ function coverCardSrc(m: any): string | null {
   }
 }
 
-const editOpen = ref(false)
-const editId = ref<number | null>(null)
-
-const activeMarker = computed(() => {
-  if (editId.value == null) return null
-  return uiMarkers.value.find(m => Number(m.id) === Number(editId.value)) ?? null
-})
-
-
-
-const editSaving = ref(false)
-
-async function onEditSubmit({ payload, files }: { payload: any; files: File[] }) {
-  if (!activeMarker.value?.id) return
-  editSaving.value = true
-  try {
-    await updateMarkerMultipart(activeMarker.value.id, payload, files)
-    await markerStore.loadMarkers()
-    editOpen.value = false
-    editId.value = null
-  } finally {
-    editSaving.value = false
-  }
+function markerLocation(m: any): string {
+  return m.placeName || m.location || m.address || m.city || 'Ort unbekannt'
 }
-
-async function refreshMarkers() {
-  await markerStore.loadMarkers()
-}
-
-const categoryOptions = [
-  { id: 1, label: 'Reise' },
-  { id: 2, label: 'Essen' },
-  { id: 3, label: 'Sightseeing' },
-  { id: 4, label: 'Shopping' },
-]
-
-const tripStore = useTripStore()
-
-type CreateSubmitPayload = {
-  marker: NewMarker
-  tripId: number | null
-}
-
-async function saveMarker({ marker, tripId }: CreateSubmitPayload) {
-  try {
-    const title = (marker.title ?? '').trim()
-    const lat = Number(marker.lat)
-    const lng = Number(marker.lng)
-
-    if (!title || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      console.warn('[Dashboard] invalid marker payload before POST', { marker, title, lat, lng })
-      return
-    }
-
-    const withPlace: NewMarker = { ...marker }
-    if (!withPlace.placeName || !withPlace.placeName.trim()) {
-      withPlace.placeName = await reversePlaceName(lat, lng)
-    }
-
-    // ✅ Backend erwartet startDate (nicht occurredAt)
-    const body = {
-      title,
-      description: withPlace.description ?? '',
-      categoryId: withPlace.categoryId ?? null,
-      startDate: withPlace.occurredAt, // 🔥 wichtig
-      lat,
-      lng,
-      visibility: withPlace.visibility ?? 'PRIVATE',
-      placeName: withPlace.placeName ?? null,
-      images: withPlace.images ?? [],
-    }
-
-    const created = await apiFetch('/markers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-
-    // ✅ optional: direkt dem Trip hinzufügen
-    if (tripId != null) {
-      await tripStore.selectTrip(tripId)
-      await tripStore.addStop(created.id)   // addStop(markerId)
-      await tripStore.loadTrips()           // stopCount refresh
-    }
-
-    await markerStore.loadMarkers()
-    detailId.value = created.id
-    detailOpen.value = true
-  } catch (e) {
-    console.error('[Dashboard] create failed', e)
-  } finally {
-    createOpen.value = false
-  }
-}
-
 </script>
-
 <style scoped>
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }

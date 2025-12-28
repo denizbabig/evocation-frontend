@@ -16,23 +16,28 @@
       style="background-image: linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px); background-size: 80px 80px;"
     />
 
-    <!-- NAV -->
-    <nav class="absolute top-0 left-0 w-full z-40 flex items-center justify-start p-6 md:px-12">
-      <div class="flex items-center gap-6">
-        <button
-          @click="isSidebarOpen = true"
-          class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
-          aria-label="Menü öffnen"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-          </svg>
-        </button>
+    <nav class="fixed top-0 left-0 w-full z-50">
 
-        <div class="flex items-center gap-2 select-none cursor-pointer" @click="$router.push('/')">
-          <span class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-            Evocation
-          </span>
+
+      <div class="relative flex items-center justify-start p-6 md:px-12">
+        <div class="flex items-center gap-6">
+          <button
+            @click="isSidebarOpen = true"
+            class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
+            aria-label="Menü öffnen"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+            </svg>
+          </button>
+
+          <div class="flex items-center gap-2 select-none cursor-pointer" @click="goDashboard">
+            <span
+              class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
+            >
+              Evocation
+            </span>
+          </div>
         </div>
       </div>
     </nav>

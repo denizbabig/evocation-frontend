@@ -49,6 +49,7 @@ const router = createRouter({
     { path: '/trips/:id', name: 'TripDetail', component: TripDetailView},
     { path: '/marker', name: 'Marker', component: MarkersView},
     { path: '/dashboard', name: 'Dashboard', component: DashboardView},
+    {path: '/lab/overlays', name: 'OverlayLab', component: () => import('@/views/OverlayLabView.vue'),}
   ],
 })
 

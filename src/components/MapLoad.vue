@@ -75,6 +75,7 @@ function fcFromRoutes(
   return { type: 'FeatureCollection', features }
 }
 
+
 function fcFromMarkers(list: typeof props.markers): FeatureCollection<Point, any> {
   const features: Feature<Point, any>[] = list.map(m => ({
     type: 'Feature',

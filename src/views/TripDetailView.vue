@@ -21,25 +21,26 @@
       style="background-image: linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px); background-size: 80px 80px;"
     />
 
-    <!-- NAV -->
-    <nav class="absolute top-0 left-0 w-full z-40 flex items-center justify-start p-6 md:px-12">
-      <div class="flex items-center gap-6">
-        <button
-          @click="isSidebarOpen = true"
-          class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
-          aria-label="Menü öffnen"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-          </svg>
-        </button>
+    <nav class="fixed top-0 left-0 w-full z-50">
+      <div class="relative flex items-center justify-start p-6 md:px-12">
+        <div class="flex items-center gap-6">
+          <button
+            @click="isSidebarOpen = true"
+            class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
+            aria-label="Menü öffnen"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+            </svg>
+          </button>
 
-        <div class="flex items-center gap-2 select-none cursor-pointer" @click="$router.push('/dashboard')">
-      <span
-        class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
-      >
-        Evocation
-      </span>
+          <div class="flex items-center gap-2 select-none cursor-pointer" @click="goDashboard">
+            <span
+              class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
+            >
+              Evocation
+            </span>
+          </div>
         </div>
       </div>
     </nav>
@@ -50,13 +51,10 @@
           <div>
             <h1 class="text-4xl md:text-5xl font-black tracking-tight leading-tight">
               <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                {{ activeTrip?.title ?? '—' }}
+                {{ tripTitle }}
               </span>
             </h1>
 
-            <p class="text-white/60 mt-3 text-base md:text-lg max-w-2xl">
-              Marker hinzufügen, Reihenfolge ändern, Route in der Map anzeigen.
-            </p>
 
             <div class="mt-5 flex flex-wrap gap-3">
               <div class="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 backdrop-blur text-sm text-white/80">
@@ -66,24 +64,11 @@
             </div>
           </div>
 
-          <div class="flex flex-col md:flex-row gap-3 md:justify-end">
-            <AppButton variant="secondary" size="md" @click="openInMap" class="w-full sm:w-auto">
-              <span class="whitespace-nowrap bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                In Map öffnen
-              </span>
-            </AppButton>
-
-            <AppButton variant="primary" size="md" @click="openAddModal()" class="w-full sm:w-auto">
-              <span class="whitespace-nowrap bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
-                + Marker hinzufügen
-              </span>
-            </AppButton>
-          </div>
         </div>
       </header>
 
       <div class="max-w-6xl mx-auto space-y-6">
-        <!-- Quick actions (nicht mehr rechts gequetscht) -->
+        <!-- Quick actions -->
         <section class="relative isolate rounded-3xl p-[1px]">
           <div class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-35">
             <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[14px]" />
@@ -92,23 +77,34 @@
 
           <div class="relative rounded-3xl border border-white/12 bg-[#141c34]/60 backdrop-blur-md p-6">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h3 class="text-lg font-bold">Schnellaktionen</h3>
-                <p class="text-white/60 text-sm mt-1">
-                  Tipp: In der Map kannst du im „Route-Mode“ Marker direkt zum Trip hinzufügen.
-                </p>
-              </div>
 
-              <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
+
+
+              <div class="flex flex-col sm:flex-row flex-wrap gap-3 w-full justify-center">
+
+
                 <AppButton variant="secondary" size="md" class="w-full sm:w-auto" @click="$router.push('/trips')">
                   <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
                     Zurück zur Liste
                   </span>
                 </AppButton>
 
+                <AppButton variant="secondary" size="md" @click="openAddModal()" class="w-full sm:w-auto">
+              <span class="whitespace-nowrap bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+                + Marker hinzufügen
+              </span>
+                </AppButton>
+
+                <AppButton variant="secondary" size="md" @click="openInMap" class="w-full sm:w-auto">
+              <span class="whitespace-nowrap bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+                In Map öffnen
+              </span>
+                </AppButton>
+
+
                 <AppButton variant="secondary" size="md" class="w-full sm:w-auto" @click="editCoverOpen = true">
                   <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                    Cover ändern
+                    Trip bearbeiten
                   </span>
                 </AppButton>
 
@@ -139,13 +135,15 @@
                       <button class="text-gray-300 hover:text-white" @click="editCoverOpen=false">✕</button>
                     </div>
 
-                    <TripCoverPicker
+                    <TripEditModal
                       :key="coverModalKey"
                       :open="editCoverOpen"
+                      :initialTitle="activeTrip?.title ?? ''"
                       :initialCoverUrl="activeTrip?.coverUrl ?? null"
                       :initialCoverPublicId="activeTrip?.coverPublicId ?? null"
+                      :initialVisibility="activeTrip?.visibility ?? 'PRIVATE'"
                       @close="editCoverOpen = false"
-                      @change="onCoverPicked"
+                      @change="onTripEdit"
                     />
 
                     <div class="mt-6 flex justify-end">
@@ -162,7 +160,7 @@
           </div>
         </section>
 
-        <!-- Stops (MarkerEditModal-Style horizontal grid) -->
+        <!-- Stops -->
         <section class="relative isolate rounded-3xl p-[1px]">
           <div class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-40">
             <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[14px]" />
@@ -183,18 +181,19 @@
             </div>
 
             <div v-else class="mt-5">
-              <!-- Horizontal scroll area (wie MarkerEditModal) -->
               <div class="relative">
                 <div
                   ref="stopsScrollEl"
                   class="flex gap-8 overflow-x-auto overflow-y-visible pl-4 pt-4 pb-10 pr-20 scroll-smooth evoc-scroll"
                   @scroll="onStopsScroll"
                 >
+                  <!-- ✅ Stop Cards mit gleichem Glow/Shadow wie MarkerView -->
                   <div
                     v-for="(s, idx) in stopsUi"
                     :key="s.markerId"
-                    class="group relative shrink-0 w-[240px] h-[360px] rounded-[22px] overflow-hidden bg-white/5 border border-white/10
-                           cursor-grab active:cursor-grabbing transition-transform duration-200 will-change-transform origin-center"
+                    class="group relative shrink-0 w-[240px] h-[360px] cursor-pointer rounded-[22px] p-[1px]
+                           transition-all duration-300 will-change-transform origin-center
+                           hover:scale-[1.03]"
                     :class="[
                       stopDraggingIndex === idx ? 'opacity-80' : '',
                       isStopDragging && stopDraggingIndex !== idx ? 'border-white/15' : '',
@@ -207,119 +206,137 @@
                     @drop.prevent="onStopDrop(idx)"
                     @dragend="onStopDragEnd"
                   >
-                    <!-- (A) Drag-Mode: dashed Gradient-Border -->
-                    <svg
-                      v-if="isStopDragging && stopDraggingIndex !== idx"
-                      class="pointer-events-none absolute inset-0 z-[5] opacity-80"
-                      width="240"
-                      height="360"
-                      viewBox="0 0 240 360"
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      <defs>
-                        <linearGradient :id="stopDashGradId(s.markerId)" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stop-color="rgba(167,139,250,.95)" />
-                          <stop offset="50%" stop-color="rgba(240,171,252,.95)" />
-                          <stop offset="100%" stop-color="rgba(96,165,250,.95)" />
-                        </linearGradient>
-                      </defs>
-
-                      <rect
-                        x="1" y="1" width="236" height="356"
-                        rx="20" ry="20"
-                        fill="none"
-                        :stroke="`url(#${stopDashGradId(s.markerId)})`"
-                        stroke-width="2"
-                        stroke-dasharray="10 8"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-
-                    <!-- (B) Drop-Target emphasis -->
-                    <svg
-                      v-if="isStopDragging && stopDragOverIndex === idx && stopDraggingIndex !== idx"
-                      class="pointer-events-none absolute inset-0 z-[6] opacity-95"
-                      width="240"
-                      height="360"
-                      viewBox="0 0 240 360"
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      <rect
-                        x="1" y="1" width="236" height="356"
-                        rx="20" ry="20"
-                        fill="none"
-                        :stroke="`url(#${stopDashGradId(s.markerId)})`"
-                        stroke-width="2.5"
-                        stroke-dasharray="10 8"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-
-                    <!-- Media -->
-                    <video
-                      v-if="stopCoverSrc(s.markerId) && isVideoUrl(stopCoverSrc(s.markerId)!)"
-                      :src="stopCoverSrc(s.markerId)!"
-                      class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                      muted
-                      playsinline
-                      preload="metadata"
-                      loop
+                    <!-- Gradient Border + Glow (1:1 wie Marker Cards) -->
+                    <div
+                      class="absolute inset-0 rounded-[22px] opacity-0 blur-[12px] transition-opacity duration-300 group-hover:opacity-70"
+                      style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
                     />
-                    <img
-                      v-else-if="stopCoverSrc(s.markerId)"
-                      :src="stopCoverSrc(s.markerId)!"
-                      alt=""
-                      class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                      loading="lazy"
-                      draggable="false"
+                    <div
+                      class="absolute inset-0 rounded-[22px] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                      style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
                     />
-                    <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
 
-                    <div class="absolute inset-0 bg-black/10" />
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                    <!-- Card Surface -->
+                    <div
+                      class="relative h-full w-full rounded-[22px] overflow-hidden bg-white/5 border border-white/10
+                             transition-all duration-300
+                             group-hover:shadow-2xl group-hover:shadow-fuchsia-900/30
+                             cursor-grab active:cursor-grabbing"
+                    >
+                      <!-- (A) Drag-Mode: dashed Gradient-Border -->
+                      <svg
+                        v-if="isStopDragging && stopDraggingIndex !== idx"
+                        class="pointer-events-none absolute inset-0 z-[5] opacity-80"
+                        width="240"
+                        height="360"
+                        viewBox="0 0 240 360"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                      >
+                        <defs>
+                          <linearGradient :id="stopDashGradId(s.markerId)" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="rgba(167,139,250,.95)" />
+                            <stop offset="50%" stop-color="rgba(240,171,252,.95)" />
+                            <stop offset="100%" stop-color="rgba(96,165,250,.95)" />
+                          </linearGradient>
+                        </defs>
 
-                    <!-- index badge -->
-                    <div class="absolute left-4 top-4 z-20">
-                      <span class="rounded-full px-3 py-1 text-xs font-semibold bg-white/10 border border-white/15 backdrop-blur-md">
-                        #{{ idx + 1 }}
-                      </span>
-                    </div>
+                        <rect
+                          x="1" y="1" width="236" height="356"
+                          rx="20" ry="20"
+                          fill="none"
+                          :stroke="`url(#${stopDashGradId(s.markerId)})`"
+                          stroke-width="2"
+                          stroke-dasharray="10 8"
+                          stroke-linecap="round"
+                        />
+                      </svg>
 
-                    <!-- actions -->
-                    <div class="absolute right-4 top-4 z-20 flex items-center gap-2">
-                      <button
-                        class="h-10 w-10 rounded-xl bg-black/45 border border-white/15 backdrop-blur
-                               hover:bg-black/60 hover:border-white/25 transition disabled:opacity-40"
-                        :disabled="idx === 0"
-                        @click.stop="moveUi(idx, -1)"
-                        title="Nach links"
-                      >←</button>
+                      <!-- (B) Drop-Target emphasis -->
+                      <svg
+                        v-if="isStopDragging && stopDragOverIndex === idx && stopDraggingIndex !== idx"
+                        class="pointer-events-none absolute inset-0 z-[6] opacity-95"
+                        width="240"
+                        height="360"
+                        viewBox="0 0 240 360"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                      >
+                        <rect
+                          x="1" y="1" width="236" height="356"
+                          rx="20" ry="20"
+                          fill="none"
+                          :stroke="`url(#${stopDashGradId(s.markerId)})`"
+                          stroke-width="2.5"
+                          stroke-dasharray="10 8"
+                          stroke-linecap="round"
+                        />
+                      </svg>
 
-                      <button
-                        class="h-10 w-10 rounded-xl bg-black/45 border border-white/15 backdrop-blur
-                               hover:bg-black/60 hover:border-white/25 transition disabled:opacity-40"
-                        :disabled="idx === stopsUi.length - 1"
-                        @click.stop="moveUi(idx, +1)"
-                        title="Nach rechts"
-                      >→</button>
+                      <!-- Media -->
+                      <video
+                        v-if="stopCoverSrc(s.markerId) && isVideoUrl(stopCoverSrc(s.markerId)!)"
+                        :src="stopCoverSrc(s.markerId)!"
+                        class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                        muted
+                        playsinline
+                        preload="metadata"
+                        loop
+                      />
+                      <img
+                        v-else-if="stopCoverSrc(s.markerId)"
+                        :src="stopCoverSrc(s.markerId)!"
+                        alt=""
+                        class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                        loading="lazy"
+                        draggable="false"
+                      />
+                      <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
 
-                      <button
-                        class="h-10 w-10 rounded-xl bg-black/45 border border-white/15 backdrop-blur
-                               hover:bg-black/60 hover:border-white/25 transition"
-                        @click.stop="remove(s.markerId)"
-                        title="Entfernen"
-                      >🗑️</button>
-                    </div>
+                      <div class="absolute inset-0 bg-black/10" />
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
 
-                    <!-- title -->
-                    <div class="absolute left-0 bottom-0 z-20 w-full p-5">
-                      <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
-                        {{ markerById(s.markerId)?.title ?? `Marker ${s.markerId}` }}
+                      <!-- index badge -->
+                      <div class="absolute left-4 top-4 z-20">
+                        <span class="rounded-full px-3 py-1 text-xs font-semibold bg-white/10 border border-white/15 backdrop-blur-md">
+                          #{{ idx + 1 }}
+                        </span>
                       </div>
-                      <div class="mt-1 text-sm text-white/70 line-clamp-1">
-                        {{ markerById(s.markerId)?.placeName ?? '' }}
+
+                      <!-- actions -->
+                      <div class="absolute right-4 top-4 z-20 flex items-center gap-2">
+                        <button
+                          class="h-10 w-10 rounded-xl bg-black/45 border border-white/15 backdrop-blur
+                                 hover:bg-black/60 hover:border-white/25 transition disabled:opacity-40"
+                          :disabled="idx === 0"
+                          @click.stop="moveUi(idx, -1)"
+                          title="Nach links"
+                        >←</button>
+
+                        <button
+                          class="h-10 w-10 rounded-xl bg-black/45 border border-white/15 backdrop-blur
+                                 hover:bg-black/60 hover:border-white/25 transition disabled:opacity-40"
+                          :disabled="idx === stopsUi.length - 1"
+                          @click.stop="moveUi(idx, +1)"
+                          title="Nach rechts"
+                        >→</button>
+
+                        <button
+                          class="h-10 w-10 rounded-xl bg-black/45 border border-white/15 backdrop-blur
+                                 hover:bg-black/60 hover:border-white/25 transition"
+                          @click.stop="remove(s.markerId)"
+                          title="Entfernen"
+                        >🗑️</button>
+                      </div>
+
+                      <!-- title -->
+                      <div class="absolute left-0 bottom-0 z-20 w-full p-5">
+                        <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
+                          {{ markerById(s.markerId)?.title ?? `Marker ${s.markerId}` }}
+                        </div>
+                        <div class="mt-1 text-sm text-white/70 line-clamp-1">
+                          {{ markerById(s.markerId)?.placeName ?? '' }}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -353,7 +370,6 @@
                 </button>
               </div>
 
-              <!-- mobile hint -->
               <div class="mt-4 text-sm text-white/55 md:hidden">
                 <span class="font-semibold text-white/75">Tipp:</span> Zieh die Cards per Drag & Drop, um die Reihenfolge zu ändern.
               </div>
@@ -363,9 +379,6 @@
       </div>
     </main>
 
-
-
-    <!-- Add Marker Modal (unverändert) -->
     <TripMarkerAssignModal
       :open="addOpen"
       :currentTripId="tripId"
@@ -387,6 +400,7 @@ import { useMarkerStore } from '@/stores/MarkerStore'
 import { apiFetch } from '@/lib/api'
 import { markerCover } from '@/lib/markerImages'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
+import type { Visibility } from '@/types/Marker'
 
 defineOptions({ name: 'TripDetailView' })
 
@@ -502,8 +516,16 @@ function markerById(id: number) {
   return markers.value.find(m => Number(m.id) === Number(id)) ?? null
 }
 
+const tripTitle = computed(() => activeTrip.value?.title || '—')
+
 onMounted(async () => {
+  // ✅ wichtig: wenn man direkt auf die Detail-URL geht, ist trips oft noch leer
+  if (!trips.value?.length) {
+    await tripStore.loadTrips()
+  }
+
   await tripStore.selectTrip(tripId.value)
+
   if (!markers.value.length) await markerStore.loadMarkers()
   await loadAssignedIds()
   requestAnimationFrame(updateStopsScrollHints)
@@ -589,16 +611,18 @@ async function openAddModal() {
   await loadAssignedIds()
 }
 
-import TripCoverPicker from '@/components/TripCoverPicker.vue'
+import TripEditModal from '@/components/TripEditModal.vue'
 
 const editCoverOpen = ref(false)
 
-async function onCoverPicked(p: { coverUrl: string | null; coverPublicId: string | null }) {
+async function onTripEdit(p: { title: string; coverUrl: string | null; coverPublicId: string | null; visibility: Visibility }) {
   if (!activeTrip.value) return
   await tripStore.updateTrip(activeTrip.value.id, {
+    title: p.title,
     coverUrl: p.coverUrl,
     coverPublicId: p.coverPublicId,
     coverMarkerId: null,
+    visibility: p.visibility,
   })
 }
 

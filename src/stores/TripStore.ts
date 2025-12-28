@@ -1,15 +1,18 @@
 import { defineStore } from 'pinia'
 import { apiFetch } from '@/lib/api'
 import type { Trip, TripStop } from '@/types/Trip'
+import type { Visibility } from '@/types/Marker'
 
 type CreateTripPayload = {
   title: string
   coverUrl?: string | null
   coverPublicId?: string | null
   coverMarkerId?: number | null
+  visibility?: Visibility
 }
 
 type UpdateTripPayload = Partial<CreateTripPayload>
+
 
 export const useTripStore = defineStore('trip', {
   state: () => ({
@@ -65,8 +68,8 @@ export const useTripStore = defineStore('trip', {
       try {
         const payload: CreateTripPayload =
           typeof titleOrPayload === 'string'
-            ? { title: titleOrPayload }
-            : titleOrPayload
+            ? { title: titleOrPayload, visibility: 'PRIVATE' }
+            : { visibility: 'PRIVATE', ...titleOrPayload }
 
         const t = await apiFetch('/trips', {
           method: 'POST',

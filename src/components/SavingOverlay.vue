@@ -42,11 +42,6 @@
         class="relative rounded-[28px] border border-white/10 ring-1 ring-white/5
                bg-[#0b1228]/78 backdrop-blur-xl overflow-hidden"
       >
-        <!-- Top shimmer strip -->
-        <div class="absolute inset-x-0 top-0 h-[2px] opacity-90">
-          <div class="h-full w-full bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 animate-evoc-shimmer" />
-        </div>
-
         <!-- Content -->
         <div class="p-7 md:p-8">
           <div class="flex items-start gap-5">
@@ -80,25 +75,51 @@
               </div>
 
               <!-- Progress -->
-              <div v-if="typeof progress === 'number'" class="mt-5">
-                <div class="flex items-center justify-between text-[11px] text-white/50 mb-2">
-                  <span>Upload</span>
-                  <span class="tabular-nums">{{ clampedProgress }}%</span>
+              <div class="mt-5">
+                <!-- Determinate -->
+                <div v-if="typeof resolvedProgress === 'number'">
+                  <div class="flex items-center justify-between text-[11px] text-white/50 mb-2">
+                    <span>{{ progressLabel }}</span>
+                    <span class="tabular-nums">
+                      {{ resolvedProgress }}%
+                      <span v-if="etaText" class="text-white/35 ml-2">• {{ etaText }}</span>
+                    </span>
+                  </div>
+
+                  <div class="h-2.5 rounded-full bg-white/10 overflow-hidden border border-white/10">
+                    <div
+                      class="relative h-full rounded-full transition-[width] duration-300"
+                      :style="{ width: `${resolvedProgress}%` }"
+                    >
+                      <!-- gradient fill -->
+                      <div
+                        class="absolute inset-0"
+                        style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
+                      />
+                      <!-- moving shine -->
+                      <div
+                        class="absolute inset-0 opacity-45 animate-evoc-shimmer"
+                        style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);"
+                      />
+                    </div>
+                  </div>
+
+                  <div v-if="showSteps && totalSteps > 0" class="mt-2 text-[11px] text-white/40">
+                    Schritt {{ Math.min(doneSteps, totalSteps) }}/{{ totalSteps }}
+                  </div>
                 </div>
 
-                <div class="h-2.5 rounded-full bg-white/10 overflow-hidden border border-white/10">
-                  <div
-                    class="relative h-full rounded-full transition-[width] duration-300"
-                    :style="{ width: `${clampedProgress}%` }"
-                  >
-                    <!-- gradient fill -->
+                <!-- Indeterminate fallback -->
+                <div v-else>
+                  <div class="flex items-center justify-between text-[11px] text-white/50 mb-2">
+                    <span>{{ progressLabel }}</span>
+                    <span class="text-white/35">…</span>
+                  </div>
+
+                  <div class="h-2.5 rounded-full bg-white/10 overflow-hidden border border-white/10">
                     <div
-                      class="absolute inset-0"
-                      style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
+                      class="h-full w-1/2 bg-gradient-to-r from-purple-400/60 via-fuchsia-300/50 to-indigo-400/60 animate-[evoc-loading_1.2s_ease-in-out_infinite]"
                     />
-                    <!-- moving shine -->
-                    <div class="absolute inset-0 opacity-45 animate-evoc-shimmer"
-                         style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);" />
                   </div>
                 </div>
               </div>
@@ -112,46 +133,313 @@
         </div>
 
         <!-- Bottom ambience -->
-        <div class="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[520px] h-[220px] opacity-40 pointer-events-none"
-             style="background: radial-gradient(circle, rgba(96,165,250,0.22), transparent 60%);" />
+        <div
+          class="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[520px] h-[220px] opacity-40 pointer-events-none"
+          style="background: radial-gradient(circle, rgba(96,165,250,0.22), transparent 60%);"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  title?: string
-  message?: string
-  hint?: string
-  progress?: number | null
-  blockClose?: boolean
-}>(), {
-  title: 'Speichere Änderungen…',
-  message: 'Deine Bilder und Videos werden hochgeladen.',
-  hint: '',
-  progress: null,
-  blockClose: true,
+type UploadLike = {
+  // minimal: what we need to compute steps
+  uploading?: boolean
+  uploaded?: any
+  error?: string | null
+  isVideo?: boolean
+}
+
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    title?: string
+    message?: string
+    hint?: string
+    blockClose?: boolean
+
+    /**
+     * ✅ Determinate progress:
+     * - If you already have percent, pass it here.
+     * - If null, we can compute percent from items + step logic (recommended).
+     */
+    progress?: number | null
+
+    /**
+     * ✅ New: step-based progress (clean, deterministic)
+     * - items = your draft media list (existing/new). We only look at upload state fields.
+     * - Steps: 2 per image (request + response), 3 per video (request + response + optional processing step)
+     */
+    items?: UploadLike[] | null
+    videoExtraStep?: boolean
+
+    /**
+     * Fallback (dummy progress) when no progress + no items
+     */
+    autoProgress?: boolean
+    autoProgressSpeed?: number
+    autoProgressStep?: [number, number]
+
+    /**
+     * UI
+     */
+    progressLabel?: string
+    eta?: boolean
+    showSteps?: boolean
+  }>(),
+  {
+    title: 'Speichere Änderungen…',
+    message: 'Deine Bilder und Videos werden hochgeladen.',
+    hint: '',
+    blockClose: true,
+
+    progress: null,
+    items: null,
+    videoExtraStep: true,
+
+    autoProgress: false,
+    autoProgressSpeed: 220,
+    autoProgressStep: () => [2, 7],
+
+    progressLabel: 'Upload',
+    eta: true,
+    showSteps: false,
+  }
+)
+
+function clampProgress(p: number) {
+  return Math.max(0, Math.min(100, Math.round(p)))
+}
+
+/**
+ * ---- Step-based progress (preferred when items provided)
+ * Per image: 2 steps (request start, response success)
+ * Per video: 2 steps + optional 1 extra step (processing) => 3
+ *
+ * We map your existing state:
+ * - uploading === true  -> request step done
+ * - uploaded truthy     -> response step done
+ * - (video extra step)  -> we count it as done when uploaded is truthy (optional but feels good)
+ */
+const totalSteps = computed(() => {
+  const items = props.items ?? []
+  if (!items.length) return 0
+  return items.reduce((sum, it) => {
+    const base = it?.isVideo && props.videoExtraStep ? 3 : 2
+    return sum + base
+  }, 0)
 })
 
-const clampedProgress = computed(() => {
-  const p = Number(props.progress ?? 0)
-  return Math.max(0, Math.min(100, Math.round(p)))
+const doneSteps = computed(() => {
+  const items = props.items ?? []
+  if (!items.length) return 0
+
+  return items.reduce((sum, it) => {
+    const isVideo = !!it?.isVideo
+    const baseSteps = isVideo && props.videoExtraStep ? 3 : 2
+
+    // step 1: request started
+    const s1 = it?.uploading ? 1 : 0
+
+    // step 2: response received
+    const s2 = it?.uploaded ? 1 : 0
+
+    // optional step 3: video processing (we "credit" it on uploaded too to keep it clean)
+    const s3 = baseSteps === 3 ? (it?.uploaded ? 1 : 0) : 0
+
+    return sum + s1 + s2 + s3
+  }, 0)
+})
+
+const stepProgressPercent = computed<number | null>(() => {
+  const total = totalSteps.value
+  if (!total) return null
+  const done = Math.max(0, Math.min(doneSteps.value, total))
+  return clampProgress((done / total) * 100)
+})
+
+/**
+ * ---- internal dummy progress (fallback)
+ */
+const internalProgress = ref<number | null>(null)
+let timer: number | null = null
+
+function stopTimer() {
+  if (timer != null) window.clearInterval(timer)
+  timer = null
+}
+
+function startAutoProgress() {
+  stopTimer()
+  internalProgress.value = 0
+
+  const startedAt = Date.now()
+  timer = window.setInterval(() => {
+    if (!props.open) return
+    const cur = internalProgress.value ?? 0
+
+    const maxTarget = 95
+    if (cur >= maxTarget) return
+
+    const [minStep, maxStep] = props.autoProgressStep
+    const step = Math.floor(minStep + Math.random() * (maxStep - minStep + 1))
+
+    const slowFactor = Math.max(0.25, 1 - cur / maxTarget)
+    internalProgress.value = clampProgress(cur + step * slowFactor)
+
+    if (Date.now() - startedAt > 15000 && (internalProgress.value ?? 0) < 92) {
+      internalProgress.value = clampProgress((internalProgress.value ?? 0) + 1)
+    }
+  }, props.autoProgressSpeed)
+}
+
+watch(
+  () => props.open,
+  (o) => {
+    if (!o) {
+      stopTimer()
+      internalProgress.value = null
+      return
+    }
+
+    // auto progress only if no real progress AND no items-driven progress
+    const noReal = props.progress == null
+    const noItems = !props.items?.length
+    if (props.autoProgress && noReal && noItems) startAutoProgress()
+    else internalProgress.value = null
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.autoProgress,
+  (v) => {
+    if (!props.open) return
+    const noReal = props.progress == null
+    const noItems = !props.items?.length
+    if (v && noReal && noItems) startAutoProgress()
+    else {
+      stopTimer()
+      internalProgress.value = null
+    }
+  }
+)
+
+watch(
+  () => props.progress,
+  (p) => {
+    // real percent overrides everything
+    if (p != null) {
+      stopTimer()
+      internalProgress.value = null
+    }
+  }
+)
+
+watch(
+  () => props.items,
+  () => {
+    // items-driven progress overrides dummy
+    if (props.items?.length) {
+      stopTimer()
+      internalProgress.value = null
+    }
+  },
+  { deep: true }
+)
+
+onBeforeUnmount(stopTimer)
+
+/**
+ * ---- resolved progress priority:
+ * 1) explicit props.progress
+ * 2) step-based from items
+ * 3) dummy internal
+ * 4) null => indeterminate bar
+ */
+const resolvedProgress = computed<number | null>(() => {
+  if (typeof props.progress === 'number') return clampProgress(props.progress)
+  if (props.items?.length) return stepProgressPercent.value
+  if (props.autoProgress && typeof internalProgress.value === 'number') return clampProgress(internalProgress.value)
+  return null
+})
+
+const progressLabel = computed(() => props.progressLabel)
+const showSteps = computed(() => props.showSteps)
+
+/**
+ * ---- ETA (rough but useful)
+ */
+const startedAtRef = ref<number | null>(null)
+watch(
+  () => props.open,
+  (o) => {
+    startedAtRef.value = o ? Date.now() : null
+  },
+  { immediate: true }
+)
+
+const etaText = computed(() => {
+  if (!props.eta) return ''
+  const p = resolvedProgress.value
+  if (typeof p !== 'number' || p <= 2 || p >= 100) return ''
+  const startedAt = startedAtRef.value
+  if (!startedAt) return ''
+
+  const elapsed = (Date.now() - startedAt) / 1000
+  const rate = p / Math.max(1, elapsed)
+  if (rate <= 0.01) return ''
+
+  const remaining = (100 - p) / rate
+  if (!isFinite(remaining) || remaining <= 0) return ''
+
+  if (remaining < 60) return `~${Math.round(remaining)}s`
+  const m = Math.floor(remaining / 60)
+  const s = Math.round(remaining % 60).toString().padStart(2, '0')
+  return `~${m}:${s}`
 })
 </script>
 
 <style scoped>
-@keyframes evocShimmer {
-  0%   { transform: translateX(-35%); }
-  100% { transform: translateX(35%); }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-/* used for top strip + progress shine */
+@keyframes evocShimmer {
+  0% {
+    transform: translateX(-35%);
+  }
+  100% {
+    transform: translateX(35%);
+  }
+}
+
+/* used for progress shine */
 .animate-evoc-shimmer {
   animation: evocShimmer 1.6s ease-in-out infinite;
   transform-origin: center;
+}
+
+@keyframes evoc-loading {
+  0% {
+    transform: translateX(-30%);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(60%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(140%);
+    opacity: 0.6;
+  }
 }
 </style>

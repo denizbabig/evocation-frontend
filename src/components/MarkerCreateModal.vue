@@ -22,32 +22,53 @@
             <div class="relative z-10 grid grid-cols-3">
               <div class="flex flex-col items-start gap-3 select-none">
                 <div class="relative">
-                  <div v-if="step === 0" class="pointer-events-none absolute -inset-2 rounded-full opacity-60"
-                       style="background: radial-gradient(circle, rgba(168,85,247,.35), transparent 70%);" />
-                  <div class="h-3 w-3 rounded-full border border-white/15"
-                       :class="step >= 0 ? 'bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400' : 'bg-[#0e162c]'" />
+                  <div
+                    v-if="step === 0"
+                    class="pointer-events-none absolute -inset-2 rounded-full opacity-60"
+                    style="background: radial-gradient(circle, rgba(168,85,247,.35), transparent 70%);"
+                  />
+                  <div
+                    class="h-3 w-3 rounded-full border border-white/15"
+                    :class="step >= 0 ? 'bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400' : 'bg-[#0e162c]'"
+                  />
                 </div>
-                <div class="text-[11px] tracking-wide" :class="step >= 0 ? 'text-white/90' : 'text-white/35'">{{ steps[0] }}</div>
+                <div class="text-[11px] tracking-wide" :class="step >= 0 ? 'text-white/90' : 'text-white/35'">
+                  {{ steps[0] }}
+                </div>
               </div>
 
               <div class="flex flex-col items-center gap-3 select-none">
                 <div class="relative">
-                  <div v-if="step === 1" class="pointer-events-none absolute -inset-2 rounded-full opacity-60"
-                       style="background: radial-gradient(circle, rgba(168,85,247,.35), transparent 70%);" />
-                  <div class="h-3 w-3 rounded-full border border-white/15"
-                       :class="step >= 1 ? 'bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400' : 'bg-[#0e162c]'" />
+                  <div
+                    v-if="step === 1"
+                    class="pointer-events-none absolute -inset-2 rounded-full opacity-60"
+                    style="background: radial-gradient(circle, rgba(168,85,247,.35), transparent 70%);"
+                  />
+                  <div
+                    class="h-3 w-3 rounded-full border border-white/15"
+                    :class="step >= 1 ? 'bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400' : 'bg-[#0e162c]'"
+                  />
                 </div>
-                <div class="text-[11px] tracking-wide" :class="step >= 1 ? 'text-white/90' : 'text-white/35'">{{ steps[1] }}</div>
+                <div class="text-[11px] tracking-wide" :class="step >= 1 ? 'text-white/90' : 'text-white/35'">
+                  {{ steps[1] }}
+                </div>
               </div>
 
               <div class="flex flex-col items-end gap-3 select-none">
                 <div class="relative">
-                  <div v-if="step === 2" class="pointer-events-none absolute -inset-2 rounded-full opacity-60"
-                       style="background: radial-gradient(circle, rgba(168,85,247,.35), transparent 70%);" />
-                  <div class="h-3 w-3 rounded-full border border-white/15"
-                       :class="step >= 2 ? 'bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400' : 'bg-[#0e162c]'" />
+                  <div
+                    v-if="step === 2"
+                    class="pointer-events-none absolute -inset-2 rounded-full opacity-60"
+                    style="background: radial-gradient(circle, rgba(168,85,247,.35), transparent 70%);"
+                  />
+                  <div
+                    class="h-3 w-3 rounded-full border border-white/15"
+                    :class="step >= 2 ? 'bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400' : 'bg-[#0e162c]'"
+                  />
                 </div>
-                <div class="text-[11px] tracking-wide" :class="step >= 2 ? 'text-white/90' : 'text-white/35'">{{ steps[2] }}</div>
+                <div class="text-[11px] tracking-wide" :class="step >= 2 ? 'text-white/90' : 'text-white/35'">
+                  {{ steps[2] }}
+                </div>
               </div>
             </div>
           </div>
@@ -63,9 +84,21 @@
               <div class="absolute inset-[1px] rounded-[26px] bg-[#0e162c]" />
             </div>
 
-            <div class="relative rounded-[28px] bg-[#0b1228]/75 border border-white/10 ring-1 ring-white/5
+            <div
+              class="relative rounded-[28px] bg-[#0b1228]/75 border border-white/10 ring-1 ring-white/5
                         backdrop-blur-xl overflow-hidden shadow-2xl shadow-purple-900/30
-                        h-[680px] max-h-[80dvh] flex flex-col">
+                        h-[680px] max-h-[80dvh] flex flex-col"
+            >
+              <SavingOverlay
+                :open="busy"
+                :items="overlayItems"
+                :videoExtraStep="true"
+                title="Speichere Änderungen…"
+                message="Deine Bilder und Videos laden gerade."
+                hint="Bitte Fenster nicht schließen."
+                :showSteps="false"
+              />
+
               <!-- Step badge -->
               <div class="absolute top-6 right-6 z-20">
                 <div class="rounded-2xl px-4 py-2 text-sm text-white/90 bg-white/5 border border-white/10">
@@ -107,11 +140,20 @@
                           🗑️
                         </button>
 
-                        <img v-if="p.kind === 'image'" :src="p.previewUrl" class="h-full w-full object-cover" draggable="false" />
-                        <video v-else :src="p.previewUrl" class="h-full w-full object-cover" muted playsinline preload="metadata" />
-
-                        <!-- Status -->
-
+                        <video
+                          v-if="p.kind === 'video'"
+                          :src="p.previewUrl"
+                          class="h-full w-full object-cover"
+                          muted
+                          playsinline
+                          preload="metadata"
+                        />
+                        <img
+                          v-else
+                          :src="p.previewUrl"
+                          class="h-full w-full object-cover"
+                          loading="lazy"
+                        />
 
                         <!-- Cover -->
                         <button
@@ -271,47 +313,25 @@
                       </div>
                     </div>
 
-                    <!-- Kategorie + Visibility -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <!-- Kategorie -->
-                      <div>
-                        <div class="relative group isolate">
-                          <GlowInputShell />
-                          <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
-                            <select
-                              v-model.number="form.categoryId"
-                              class="w-full bg-transparent border-none outline-none text-white h-11 md:h-12 text-base md:text-lg focus:ring-0"
-                            >
-                              <option :value="null" class="bg-[#1a233e] text-gray-400">– keine –</option>
-                              <option v-for="c in categories" :key="c.id" :value="c.id" class="bg-[#1a233e]">
-                                {{ c.label }}
-                              </option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Visibility -->
-                      <div>
-                        <div class="relative group isolate">
-                          <GlowInputShell />
-                          <div
-                            class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2 flex items-center justify-between"
+                    <!-- Kategorie (alleine, volle Breite) -->
+                    <div>
+                      <div class="relative group isolate">
+                        <GlowInputShell />
+                        <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-3 py-2">
+                          <select
+                            v-model="form.categoryId"
+                            class="w-full bg-transparent border-none outline-none text-white h-11 md:h-12 text-base md:text-lg focus:ring-0"
                           >
-                            <div class="text-white/85 pl-2">
-                              Sichtbarkeit:
-                              <span class="font-semibold">{{ form.visibility === 'PUBLIC' ? 'Öffentlich' : 'Privat' }}</span>
-                            </div>
-
-                            <AppButton type="button" variant="secondary" size="md" class="h-11" :disabled="busy" @click="toggleVisibility">
-                              <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                                Toggle
-                              </span>
-                            </AppButton>
-                          </div>
+                            <option :value="null" class="bg-[#1a233e] text-gray-400">– keine –</option>
+                            <option v-for="c in categories" :key="c.id" :value="c.id" class="bg-[#1a233e]">
+                              {{ c.label }}
+                            </option>
+                          </select>
                         </div>
                       </div>
                     </div>
+
+
 
                     <!-- Beschreibung -->
                     <div class="relative group isolate">
@@ -325,7 +345,6 @@
                         />
                       </div>
                     </div>
-
                   </div>
                 </div>
 
@@ -335,38 +354,75 @@
                   <p class="text-center text-white/90 mt-2">Alles sieht perfekt aus!</p>
 
                   <div class="mt-10 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8 items-start">
-                    <!-- Preview -->
-                    <div class="relative group isolate h-[400px] rounded-3xl">
-                      <div class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-0 group-hover:opacity-100 transition duration-300">
-                        <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-                        <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-                        <div class="absolute inset-[1px] rounded-[calc(1.5rem-1px)] bg-[#0e162c]" />
+                    <!-- LEFT: Preview + Visibility Button -->
+                    <div class="space-y-4">
+                      <!-- Preview -->
+                      <div class="relative group isolate h-[400px] rounded-3xl">
+                        <div class="pointer-events-none absolute -inset-[1px] rounded-3xl opacity-0 group-hover:opacity-100 transition duration-300">
+                          <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
+                          <div class="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
+                          <div class="absolute inset-[1px] rounded-[calc(1.5rem-1px)] bg-[#0e162c]" />
+                        </div>
+
+                        <div class="relative z-10 h-[400px] overflow-hidden rounded-3xl bg-[#141c34]/60 backdrop-blur-md border border-white/10">
+                          <video
+                            v-if="coverMedia && coverMedia.kind === 'video'"
+                            :src="coverMedia.previewUrl"
+                            class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                            muted
+                            playsinline
+                            preload="metadata"
+                            loop
+                            autoplay
+                          />
+                          <img
+                            v-else-if="coverMedia"
+                            :src="coverMedia.previewUrl"
+                            class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                            loading="lazy"
+                          />
+                          <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
+
+                          <div class="absolute inset-0 bg-black/15" />
+                          <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+                          <div class="absolute left-0 bottom-0 z-20 w-full p-5">
+                            <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
+                              {{ form.title?.trim() || 'Ohne Titel' }}
+                            </div>
+
+                            <div class="mt-2 flex items-center gap-2 text-sm text-white/80">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
+                              </svg>
+                              <span class="truncate">{{ form.placeName || 'Ort unbekannt' }}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div class="relative z-10 h-[400px] overflow-hidden rounded-3xl bg-[#141c34]/60 backdrop-blur-md border border-white/10">
-                        <img
-                          v-if="coverPreview"
-                          :src="coverPreview"
-                          class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                          loading="lazy"
-                        />
-                        <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
 
-                        <div class="absolute inset-0 bg-black/15" />
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      <!-- ✅ Visibility Toggle unter dem Cover (links) -->
+                      <div class="w-full">
+                        <AppButton
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          class="w-full h-12"
+                          :disabled="busy"
+                          @click="toggleVisibility"
+                          :title="form.visibility === 'PUBLIC' ? 'Klick: auf Privat stellen' : 'Klick: auf Öffentlich stellen'"
+                        >
+                          <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent font-semibold">
+                            {{ form.visibility === 'PUBLIC' ? 'Öffentlich' : 'Privat' }}
+                          </span>
+                        </AppButton>
 
-                        <div class="absolute left-0 bottom-0 z-20 w-full p-5">
-                          <div class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm">
-                            {{ form.title?.trim() || 'Ohne Titel' }}
-                          </div>
-
-                          <div class="mt-2 flex items-center gap-2 text-sm text-white/80">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21s7.5-3.358 7.5-10.5a7.5 7.5 0 1 0-15 0C4.5 17.642 12 21 12 21z"/>
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5a2.25 2.25 0 1 0 0 .001z"/>
-                            </svg>
-                            <span class="truncate">{{ form.placeName || 'Ort unbekannt' }}</span>
-                          </div>
+                        <div class="mt-2 text-xs text-white/45 text-center">
+                          {{ form.visibility === 'PUBLIC'
+                          ? 'Dieser Marker ist öffentlich sichtbar.'
+                          : 'Dieser Marker ist nur für dich sichtbar.' }}
                         </div>
                       </div>
                     </div>
@@ -390,14 +446,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- optional loading overlay inside card -->
-              <div v-if="busy" class="absolute inset-0 bg-black/35 backdrop-blur-[2px] grid place-items-center">
-                <div class="rounded-2xl bg-white/10 border border-white/15 px-5 py-3 text-sm text-white/80">
-                  {{ uploading ? 'Upload…' : 'Speichern…' }}
-                </div>
-              </div>
-
             </div>
           </div>
 
@@ -422,7 +470,6 @@
                 </span>
               </AppButton>
 
-              <!-- ✅ kein allUploaded-Block mehr -->
               <AppButton v-else :disabled="busy || !isValid" variant="primary" size="md" @click="onSubmit">
                 <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
                   Speichern
@@ -447,8 +494,12 @@ import type { Visibility } from '@/types/Marker'
 import { useTripStore } from '@/stores/TripStore'
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import SavingOverlay from '@/components/SavingOverlay.vue'
+import type { CategoryId } from '@/types/CategoryId' // oder wo dein CategoryId jetzt liegt
+// alternativ: import type { CategoryId } from '@/types/Marker' falls dort definiert
 
-type CategoryOption = { id: number; label: string }
+type CategoryOption = { id: CategoryId; label: string }
+
 
 type PendingMedia = {
   id: string
@@ -471,10 +522,14 @@ const props = withDefaults(defineProps<{
   showPlaceSearch?: boolean
 }>(), {
   categories: () => [
-    { id: 1, label: 'Reise' },
-    { id: 2, label: 'Essen' },
-    { id: 3, label: 'Sightseeing' },
-    { id: 4, label: 'Shopping' },
+    { id: 'TRAVEL',   label: 'Reise' },
+    { id: 'FOOD',     label: 'Essen' },
+    { id: 'CULTURE',  label: 'Sightseeing / Kultur' },
+    { id: 'SHOPPING', label: 'Shopping' },
+    { id: 'NATURE',   label: 'Natur' },
+    // optional:
+    // { id: 'ADVENTURE', label: 'Abenteuer' },
+    // { id: 'SPORT', label: 'Sport' },
   ],
   saving: false,
   defaultLat: 52.520008,
@@ -555,11 +610,13 @@ const allUploaded = computed(() =>
   pendingMedia.value.length > 0 && pendingMedia.value.every(p => !!p.uploaded)
 )
 
-const coverPreview = computed(() => {
-  const cover = pendingMedia.value.find(p => p.isCover) ?? pendingMedia.value[0]
-  if (!cover) return null
-  return cover.previewUrl
+const coverMedia = computed(() => {
+  return pendingMedia.value.find(p => p.isCover) ?? pendingMedia.value[0] ?? null
 })
+
+const coverPreview = computed(() => coverMedia.value?.previewUrl ?? null)
+
+const coverIsVideo = computed(() => coverMedia.value?.kind === 'video')
 
 function pickFiles() {
   fileInputEl.value?.click()
@@ -941,6 +998,15 @@ async function resolvePlaceFromCoords() {
     placeLoading.value = false
   }
 }
+
+const overlayItems = computed(() =>
+  pendingMedia.value.map(p => ({
+    uploading: !!p.uploading,
+    uploaded: p.uploaded,
+    error: p.error ?? null,
+    isVideo: p.kind === 'video',
+  }))
+)
 
 </script>
 

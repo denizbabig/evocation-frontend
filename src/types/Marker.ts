@@ -1,5 +1,6 @@
 // src/types/Marker.ts
 import type { ImageAsset } from './ImageAsset'
+import type {CategoryId} from "@/types/CategoryId.ts";
 export type CategoryNumeric = 1 | 2 | 3 | 4
 export type Visibility = 'PRIVATE' | 'PUBLIC'
 
@@ -9,7 +10,7 @@ export type NewMarker = {
   occurredAt: string
   lat: number
   lng: number
-  categoryId: CategoryNumeric | null
+  categoryId: CategoryId | null
   images?: ImageAsset[]
   visibility: Visibility
   placeName?: string | null

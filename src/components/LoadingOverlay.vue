@@ -69,12 +69,40 @@
               </div>
 
               <!-- Shimmer progress -->
-              <div class="mt-4 h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
-                <div
-                  class="h-full w-1/2 bg-gradient-to-r from-purple-400/60 via-fuchsia-300/50 to-indigo-400/60 animate-[evoc-loading_1.2s_ease-in-out_infinite]"
-                ></div>
-              </div>
+              <!-- Progress -->
+              <div class="mt-4">
+                <!-- Determinate -->
+                <div v-if="typeof resolvedProgress === 'number'">
+                  <div class="flex items-center justify-between text-[11px] text-white/50 mb-2">
+                    <span>{{ progressLabel }}</span>
+                    <span class="tabular-nums">
+        {{ resolvedProgress }}%
+        <span v-if="etaText" class="text-white/35 ml-2">• {{ etaText }}</span>
+      </span>
+                  </div>
 
+                  <div class="h-2.5 rounded-full bg-white/10 overflow-hidden border border-white/10">
+                    <div
+                      class="relative h-full rounded-full transition-[width] duration-300"
+                      :style="{ width: `${resolvedProgress}%` }"
+                    >
+                      <div
+                        class="absolute inset-0"
+                        style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
+                      />
+                      <div
+                        class="absolute inset-0 opacity-45 animate-evoc-shimmer"
+                        style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Indeterminate fallback -->
+                <div v-else class="h-2 rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                  <div class="h-full w-1/2 bg-gradient-to-r from-purple-400/60 via-fuchsia-300/50 to-indigo-400/60 animate-[evoc-loading_1.2s_ease-in-out_infinite]" />
+                </div>
+              </div>
               <div v-if="hint" class="mt-3 text-[11px] text-gray-500">
                 {{ hint }}
               </div>
@@ -92,6 +120,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+
 const props = withDefaults(defineProps<{
   open: boolean
   title?: string
@@ -99,12 +129,27 @@ const props = withDefaults(defineProps<{
   message?: string
   hint?: string | null
   closeOnBackdrop?: boolean
+
+  // ✅ neu
+  progress?: number | null              // 0..100 => determinate, null => shimmer
+  progressLabel?: string               // z.B. "Upload"
+  autoProgress?: boolean               // dummy loading for testing
+  autoProgressSpeed?: number           // ms step interval
+  autoProgressStep?: [number, number]  // random min/max step
+  eta?: boolean                        // ETA anzeigen (nur bei determinate)
 }>(), {
   title: 'Shared Map',
   subtitle: 'Öffentliche Marker werden geladen…',
   message: 'Wir synchronisieren gerade die Karte. Das dauert normalerweise nur einen Moment.',
   hint: 'Tipp: Wenn der Link ungültig ist, bekommst du gleich eine Fehlermeldung.',
   closeOnBackdrop: false,
+
+  progress: null,
+  progressLabel: 'Lädt',
+  autoProgress: false,
+  autoProgressSpeed: 220,
+  autoProgressStep: () => [2, 7],
+  eta: true,
 })
 
 const emit = defineEmits<{
@@ -114,15 +159,138 @@ const emit = defineEmits<{
 function onBackdrop() {
   if (props.closeOnBackdrop) emit('close')
 }
+
+// --- progress handling ---
+const internalProgress = ref<number | null>(null)
+let timer: number | null = null
+
+function clampProgress(p: number) {
+  return Math.max(0, Math.min(100, Math.round(p)))
+}
+
+function stopTimer() {
+  if (timer != null) window.clearInterval(timer)
+  timer = null
+}
+
+function startAutoProgress() {
+  stopTimer()
+  internalProgress.value = 0
+
+  const startedAt = Date.now()
+  timer = window.setInterval(() => {
+    if (!props.open) return
+    const cur = internalProgress.value ?? 0
+
+    // langsam gegen 95% "asymptotisch" laufen, damit es realistischer wirkt
+    const maxTarget = 95
+    if (cur >= maxTarget) return
+
+    const [minStep, maxStep] = props.autoProgressStep
+    const step = Math.floor(minStep + Math.random() * (maxStep - minStep + 1))
+
+    // je näher an maxTarget, desto kleiner werden steps
+    const slowFactor = Math.max(0.25, 1 - cur / maxTarget)
+    const next = cur + step * slowFactor
+
+    internalProgress.value = clampProgress(next)
+
+    // (optional) nach langer Zeit minimal weiter
+    if (Date.now() - startedAt > 15000 && internalProgress.value < 92) {
+      internalProgress.value = clampProgress(internalProgress.value + 1)
+    }
+  }, props.autoProgressSpeed)
+}
+
+watch(
+  () => props.open,
+  (o) => {
+    if (!o) {
+      stopTimer()
+      internalProgress.value = null
+      return
+    }
+
+    // when opened
+    if (props.autoProgress && props.progress == null) startAutoProgress()
+    else internalProgress.value = null
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.autoProgress,
+  (v) => {
+    if (!props.open) return
+    if (v && props.progress == null) startAutoProgress()
+    else {
+      stopTimer()
+      internalProgress.value = null
+    }
+  }
+)
+
+watch(
+  () => props.progress,
+  (p) => {
+    // wenn echter progress kommt, dummy stoppen
+    if (p != null) {
+      stopTimer()
+      internalProgress.value = null
+    }
+  }
+)
+
+onBeforeUnmount(stopTimer)
+
+const resolvedProgress = computed<number | null>(() => {
+  if (typeof props.progress === 'number') return clampProgress(props.progress)
+  if (props.autoProgress && typeof internalProgress.value === 'number') return clampProgress(internalProgress.value)
+  return null
+})
+
+// --- ETA (simple) ---
+const startedAtRef = ref<number | null>(null)
+
+watch(
+  () => props.open,
+  (o) => {
+    if (o) startedAtRef.value = Date.now()
+    else startedAtRef.value = null
+  },
+  { immediate: true }
+)
+
+const etaText = computed(() => {
+  if (!props.eta) return ''
+  const p = resolvedProgress.value
+  if (typeof p !== 'number' || p <= 2 || p >= 100) return ''
+  const startedAt = startedAtRef.value
+  if (!startedAt) return ''
+
+  const elapsed = (Date.now() - startedAt) / 1000
+  const rate = p / Math.max(1, elapsed) // % pro sek
+  if (rate <= 0.01) return ''
+
+  const remaining = (100 - p) / rate // sek
+  if (!isFinite(remaining) || remaining <= 0) return ''
+
+  if (remaining < 60) return `~${Math.round(remaining)}s`
+  const m = Math.floor(remaining / 60)
+  const s = Math.round(remaining % 60).toString().padStart(2, '0')
+  return `~${m}:${s}`
+})
+
+const progressLabel = computed(() => props.progressLabel)
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity .2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-@keyframes evoc-loading {
-  0%   { transform: translateX(-30%); opacity: 0.6; }
-  50%  { transform: translateX(60%);  opacity: 1; }
-  100% { transform: translateX(140%); opacity: 0.6; }
+@keyframes evocShimmer {
+  0%   { transform: translateX(-35%); }
+  100% { transform: translateX(35%); }
+}
+.animate-evoc-shimmer {
+  animation: evocShimmer 1.6s ease-in-out infinite;
+  transform-origin: center;
 }
 </style>

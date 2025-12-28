@@ -6,19 +6,37 @@
 </template>
 
 <script setup lang="ts">
-
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { oktaAuth } from '@/lib/oktaAuth'
 import { useTripStore } from '@/stores/TripStore'
 
+const route = useRoute()
 const tripStore = useTripStore()
 
-onMounted(async () => {
+async function loadTripsIfAuthed() {
+  const authed = await oktaAuth.isAuthenticated()
+  if (!authed) return
+
   try {
     await tripStore.loadTrips()
   } catch (e) {
-    // falls beim ersten Render noch kein Token da ist -> nicht crashen
-    console.warn('loadTrips failed ', e)
+    console.warn('loadTrips failed', e)
+  }
+}
+
+onMounted(async () => {
+  // Trips nur auf protected routes laden
+  if (route.meta.requiresAuth) {
+    await loadTripsIfAuthed()
   }
 })
 
+// Wenn du später von public -> protected navigierst (Login), dann nachladen
+watch(
+  () => route.meta.requiresAuth,
+  async (needsAuth) => {
+    if (needsAuth) await loadTripsIfAuthed()
+  }
+)
 </script>
