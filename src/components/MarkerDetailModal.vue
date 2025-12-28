@@ -335,17 +335,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+/* Imports */
 import AppButton from '@/components/AppButton.vue'
 import { normalizeMarkerImages } from '@/lib/markerImages'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+/* Types */
 type Visibility = 'PRIVATE' | 'PUBLIC'
 
 type ImageLike =
   | { id?: string | number; url?: string; secureUrl?: string; secure_url?: string; path?: string; order?: number | null }
   | string
 
-type MarkerLike = {
+type MarkerLike =
+  | {
   id: number
   title?: string | null
   description?: string | null
@@ -355,17 +358,22 @@ type MarkerLike = {
   placeName?: string | null
   images?: ImageLike[]
   visibility?: Visibility | string | null
-} | null
+}
+  | null
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  marker: MarkerLike
-  readonly?: boolean
-  visibilitySaving?: boolean
-}>(), {
-  readonly: false,
-  visibilitySaving: false,
-})
+/* Props / Emits */
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    marker: MarkerLike
+    readonly?: boolean
+    visibilitySaving?: boolean
+  }>(),
+  {
+    readonly: false,
+    visibilitySaving: false,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -375,23 +383,19 @@ const emit = defineEmits<{
   (e: 'set-visibility', payload: { id: number; visibility: Visibility }): void
 }>()
 
-const images = computed(() => normalizeMarkerImages(props.marker))
-
+/* State */
 const activeIndex = ref(0)
-watch(() => props.open, (o) => { if (o) activeIndex.value = 0 })
+const hoveringHero = ref(false)
+const lightboxOpen = ref(false)
+
+/* Computed */
+const images = computed(() => normalizeMarkerImages(props.marker))
 
 const markerVisibility = computed<Visibility>(() => {
   const v = props.marker?.visibility
   if (v === 'PUBLIC' || v === 'PRIVATE') return v
   return (v ? String(v).toUpperCase() : 'PRIVATE') as Visibility
 })
-
-function toggleVisibility() {
-  if (props.readonly) return
-  if (!props.marker?.id) return
-  const next: Visibility = markerVisibility.value === 'PRIVATE' ? 'PUBLIC' : 'PRIVATE'
-  emit('set-visibility', { id: props.marker.id, visibility: next })
-}
 
 const placeText = computed(() => {
   const p = props.marker?.placeName?.trim()
@@ -401,34 +405,55 @@ const placeText = computed(() => {
 const dateText = computed(() => {
   const d = props.marker?.occurredAt
   if (!d) return '—'
+
   const [y, m, day] = String(d).split('-').map(Number)
   if (!y || !m || !day) return String(d)
+
   const dt = new Date(Date.UTC(y, m - 1, day))
   return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }).format(dt)
 })
 
-/** hero hover */
-const hoveringHero = ref(false)
+const activeItem = computed(() => images.value[activeIndex.value] ?? images.value[0] ?? null)
+const displaySrc = computed(() => activeItem.value?.full ?? '')
+const displayIsVideo = computed(() => isVideoUrl(displaySrc.value) || isVideoUrl(activeItem.value?.thumb))
 
-/** next/prev */
+/* Watch */
+watch(
+  () => props.open,
+  (o) => {
+    if (o) activeIndex.value = 0
+    else lightboxOpen.value = false
+  }
+)
+
+/* Actions */
+function toggleVisibility() {
+  if (props.readonly) return
+  if (!props.marker?.id) return
+
+  const next: Visibility = markerVisibility.value === 'PRIVATE' ? 'PUBLIC' : 'PRIVATE'
+  emit('set-visibility', { id: props.marker.id, visibility: next })
+}
+
 function prevImage() {
-  if (images.value.length <= 1) return
-  activeIndex.value = (activeIndex.value - 1 + images.value.length) % images.value.length
-}
-function nextImage() {
-  if (images.value.length <= 1) return
-  activeIndex.value = (activeIndex.value + 1) % images.value.length
+  const n = images.value.length
+  if (n <= 1) return
+  activeIndex.value = (activeIndex.value - 1 + n) % n
 }
 
-/** Lightbox */
-const lightboxOpen = ref(false)
+function nextImage() {
+  const n = images.value.length
+  if (n <= 1) return
+  activeIndex.value = (activeIndex.value + 1) % n
+}
+
 function openLightbox() {
   if (!displaySrc.value) return
-  if (displayIsVideo.value) return // Video nicht in Lightbox (optional, aber empfohlen)
+  if (displayIsVideo.value) return
   lightboxOpen.value = true
 }
 
-/** ESC + Arrow keys */
+/* Keyboard */
 function onKey(e: KeyboardEvent) {
   if (!props.open) return
 
@@ -443,6 +468,7 @@ function onKey(e: KeyboardEvent) {
     if (e.key === 'ArrowRight') nextImage()
   }
 }
+
 function isVideoUrl(u?: string) {
   if (!u) return false
   const s = u.toLowerCase()
@@ -455,19 +481,12 @@ function isVideoUrl(u?: string) {
   )
 }
 
-const activeItem = computed(() => images.value[activeIndex.value] ?? images.value[0] ?? null)
-
-const displaySrc = computed(() => activeItem.value?.full ?? '')
-const displayIsVideo = computed(() => isVideoUrl(displaySrc.value) || isVideoUrl(activeItem.value?.thumb))
-
-
+/* Lifecycle */
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 .evoc-video:fullscreen {
   object-fit: contain !important;

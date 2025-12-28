@@ -1,8 +1,9 @@
-// src/stores/MarkerStore.ts
+/* Imports */
 import { defineStore } from 'pinia'
-import type { Marker, NewMarker, CategoryNumeric } from '@/types/Marker'
+import type { CategoryNumeric, Marker, NewMarker } from '@/types/Marker'
 import { apiFetch } from '@/lib/api'
 
+/* Konstanten */
 const CategoryMapNumToEnum: Record<CategoryNumeric, string> = {
   1: 'TRAVEL',
   2: 'FOOD',
@@ -17,17 +18,12 @@ const CategoryMapEnumToNum: Record<string, CategoryNumeric> = {
   SHOPPING: 4,
 }
 
+/* Pure Helpers */
 function normalizeIncoming(m: any): Marker {
   const catStr: string | null = m?.category ?? null
   const catNum = catStr ? (CategoryMapEnumToNum[catStr] ?? null) : null
 
-  // ✅ robust: nimm alle üblichen keys mit
-  const images =
-    m?.images ??
-    m?.imageAssets ??
-    m?.markerImages ??
-    m?.marker_images ??
-    []
+  const images = m?.images ?? m?.imageAssets ?? m?.markerImages ?? m?.marker_images ?? []
 
   return {
     id: Number(m.id),
@@ -47,10 +43,9 @@ function serializeForApi(payload: NewMarker) {
   const startDate = payload.occurredAt
   const endDate = payload.occurredAt
 
-  const category =
-    payload.categoryId == null ? null : CategoryMapNumToEnum[payload.categoryId]
+  const category = payload.categoryId == null ? null : CategoryMapNumToEnum[payload.categoryId]
 
-    return {
+  return {
     title: payload.title,
     description: payload.description ?? null,
     lat: payload.lat,
@@ -60,13 +55,13 @@ function serializeForApi(payload: NewMarker) {
     category,
     images: (payload as any).images ?? [],
     placeName: (payload as any).placeName ?? null,
-
-    // ✅ NEU (passt zu CreateMarkerDTO)
     visibility: (payload as any).visibility ?? 'PRIVATE',
   }
 }
 
+/* Store */
 export const useMarkerStore = defineStore('marker', {
+  /* State */
   state: () => ({
     markers: [] as Marker[],
     isLoading: false,
@@ -74,7 +69,6 @@ export const useMarkerStore = defineStore('marker', {
     error: null as string | null,
     selectedId: null as number | null,
 
-    // Filter/Pagination – optional
     filters: {
       query: '',
       categoryId: null as CategoryNumeric | null,
@@ -83,16 +77,17 @@ export const useMarkerStore = defineStore('marker', {
     hasMore: true,
     lastLoadedAt: null as number | null,
 
-    // Draft im Modal
     draft: null as (NewMarker & { lat: number; lng: number }) | null,
   }),
 
+  /* Getters */
   getters: {
     selected(state) {
       return state.markers.find((m) => m.id === state.selectedId) ?? null
     },
   },
 
+  /* Actions */
   actions: {
     setSelected(id: number | null) {
       this.selectedId = id
@@ -120,11 +115,10 @@ export const useMarkerStore = defineStore('marker', {
       this.error = null
 
       try {
-        const data = await apiFetch('markers') // <-- Bearer kommt automatisch mit
+        const data = await apiFetch('markers')
         this.markers = Array.isArray(data) ? data.map(normalizeIncoming) : []
         this.lastLoadedAt = Date.now()
       } catch (e: any) {
-        console.error('[loadMarkers] failed:', e)
         this.error = e?.message ?? 'Fehler beim Laden der Marker'
         throw e
       } finally {
@@ -154,7 +148,6 @@ export const useMarkerStore = defineStore('marker', {
         this.lastLoadedAt = Date.now()
         return created
       } catch (e: any) {
-        console.error('[addMarker] failed:', e)
         this.error = e?.message ?? 'Speichern fehlgeschlagen'
         throw e
       } finally {
@@ -164,43 +157,38 @@ export const useMarkerStore = defineStore('marker', {
 
     async deleteMarker(id: number) {
       this.error = null
+
       try {
         await apiFetch(`/markers/${id}`, { method: 'DELETE' })
-        this.markers = this.markers.filter(m => Number(m.id) !== Number(id))
+        this.markers = this.markers.filter((m) => Number(m.id) !== Number(id))
         if (this.selectedId === id) this.selectedId = null
       } catch (e: any) {
-        console.error('[deleteMarker] failed:', e)
         this.error = e?.message ?? 'Löschen fehlgeschlagen'
         throw e
       }
     },
 
+    /* BUGFIX: fehlendes Komma/Block-Ende (sonst Syntax/Build-Error) */
     async setMarkerVisibility(id: number, visibility: 'PRIVATE' | 'PUBLIC') {
-  this.error = null
-  try {
-    const updatedRaw = await apiFetch(`/markers/${id}/visibility`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visibility }),
-    })
+      this.error = null
 
-    const updated = normalizeIncoming(updatedRaw)
+      try {
+        const updatedRaw = await apiFetch(`/markers/${id}/visibility`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visibility }),
+        })
 
-    // marker in state ersetzen
-    const idx = this.markers.findIndex(m => m.id === id)
-    if (idx !== -1) this.markers[idx] = updated
+        const updated = normalizeIncoming(updatedRaw)
 
-    return updated
-  } catch (e: any) {
-    console.error('[setMarkerVisibility] failed:', e)
-    this.error = e?.message ?? 'Visibility ändern fehlgeschlagen'
-    throw e
-  }
-}
+        const idx = this.markers.findIndex((m) => m.id === id)
+        if (idx !== -1) this.markers[idx] = updated
+
+        return updated
+      } catch (e: any) {
+        this.error = e?.message ?? 'Visibility ändern fehlgeschlagen'
+        throw e
+      }
+    },
   },
-
-
 })
-
-
-

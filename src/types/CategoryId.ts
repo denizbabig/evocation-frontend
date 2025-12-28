@@ -1,4 +1,4 @@
-// frontend
+/* Types */
 export type CategoryId =
   | 'TRAVEL'
   | 'FOOD'
@@ -8,6 +8,7 @@ export type CategoryId =
   | 'SHOPPING'
   | 'NATURE'
 
+/* Constants */
 export const CATEGORY_OPTIONS: { id: CategoryId; label: string }[] = [
   { id: 'TRAVEL', label: 'Reise' },
   { id: 'FOOD', label: 'Essen' },

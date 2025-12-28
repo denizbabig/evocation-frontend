@@ -120,53 +120,59 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  title?: string
-  subtitle?: string
-  message?: string
-  hint?: string | null
-  closeOnBackdrop?: boolean
+/* Props / Emits */
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    title?: string
+    subtitle?: string
+    message?: string
+    hint?: string | null
+    closeOnBackdrop?: boolean
 
-  // ✅ neu
-  progress?: number | null              // 0..100 => determinate, null => shimmer
-  progressLabel?: string               // z.B. "Upload"
-  autoProgress?: boolean               // dummy loading for testing
-  autoProgressSpeed?: number           // ms step interval
-  autoProgressStep?: [number, number]  // random min/max step
-  eta?: boolean                        // ETA anzeigen (nur bei determinate)
-}>(), {
-  title: 'Shared Map',
-  subtitle: 'Öffentliche Marker werden geladen…',
-  message: 'Wir synchronisieren gerade die Karte. Das dauert normalerweise nur einen Moment.',
-  hint: 'Tipp: Wenn der Link ungültig ist, bekommst du gleich eine Fehlermeldung.',
-  closeOnBackdrop: false,
+    progress?: number | null
+    progressLabel?: string
+    autoProgress?: boolean
+    autoProgressSpeed?: number
+    autoProgressStep?: [number, number]
+    eta?: boolean
+  }>(),
+  {
+    title: 'Shared Map',
+    subtitle: 'Öffentliche Marker werden geladen…',
+    message: 'Wir synchronisieren gerade die Karte. Das dauert normalerweise nur einen Moment.',
+    hint: 'Tipp: Wenn der Link ungültig ist, bekommst du gleich eine Fehlermeldung.',
+    closeOnBackdrop: false,
 
-  progress: null,
-  progressLabel: 'Lädt',
-  autoProgress: false,
-  autoProgressSpeed: 220,
-  autoProgressStep: () => [2, 7],
-  eta: true,
-})
+    progress: null,
+    progressLabel: 'Lädt',
+    autoProgress: false,
+    autoProgressSpeed: 220,
+    autoProgressStep: () => [2, 7],
+    eta: true,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
+/* UI actions */
 function onBackdrop() {
   if (props.closeOnBackdrop) emit('close')
 }
 
-// --- progress handling ---
-const internalProgress = ref<number | null>(null)
-let timer: number | null = null
-
+/* Progress utils */
 function clampProgress(p: number) {
   return Math.max(0, Math.min(100, Math.round(p)))
 }
+
+/* Auto progress */
+const internalProgress = ref<number | null>(null)
+let timer: number | null = null
 
 function stopTimer() {
   if (timer != null) window.clearInterval(timer)
@@ -180,24 +186,19 @@ function startAutoProgress() {
   const startedAt = Date.now()
   timer = window.setInterval(() => {
     if (!props.open) return
-    const cur = internalProgress.value ?? 0
 
-    // langsam gegen 95% "asymptotisch" laufen, damit es realistischer wirkt
+    const cur = internalProgress.value ?? 0
     const maxTarget = 95
     if (cur >= maxTarget) return
 
     const [minStep, maxStep] = props.autoProgressStep
     const step = Math.floor(minStep + Math.random() * (maxStep - minStep + 1))
-
-    // je näher an maxTarget, desto kleiner werden steps
     const slowFactor = Math.max(0.25, 1 - cur / maxTarget)
-    const next = cur + step * slowFactor
 
-    internalProgress.value = clampProgress(next)
+    internalProgress.value = clampProgress(cur + step * slowFactor)
 
-    // (optional) nach langer Zeit minimal weiter
-    if (Date.now() - startedAt > 15000 && internalProgress.value < 92) {
-      internalProgress.value = clampProgress(internalProgress.value + 1)
+    if (Date.now() - startedAt > 15000 && (internalProgress.value ?? 0) < 92) {
+      internalProgress.value = clampProgress((internalProgress.value ?? 0) + 1)
     }
   }, props.autoProgressSpeed)
 }
@@ -211,7 +212,6 @@ watch(
       return
     }
 
-    // when opened
     if (props.autoProgress && props.progress == null) startAutoProgress()
     else internalProgress.value = null
   },
@@ -233,7 +233,6 @@ watch(
 watch(
   () => props.progress,
   (p) => {
-    // wenn echter progress kommt, dummy stoppen
     if (p != null) {
       stopTimer()
       internalProgress.value = null
@@ -243,41 +242,43 @@ watch(
 
 onBeforeUnmount(stopTimer)
 
+/* Resolved progress */
 const resolvedProgress = computed<number | null>(() => {
   if (typeof props.progress === 'number') return clampProgress(props.progress)
   if (props.autoProgress && typeof internalProgress.value === 'number') return clampProgress(internalProgress.value)
   return null
 })
 
-// --- ETA (simple) ---
+/* ETA */
 const startedAtRef = ref<number | null>(null)
 
 watch(
   () => props.open,
   (o) => {
-    if (o) startedAtRef.value = Date.now()
-    else startedAtRef.value = null
+    startedAtRef.value = o ? Date.now() : null
   },
   { immediate: true }
 )
 
 const etaText = computed(() => {
   if (!props.eta) return ''
+
   const p = resolvedProgress.value
   if (typeof p !== 'number' || p <= 2 || p >= 100) return ''
+
   const startedAt = startedAtRef.value
   if (!startedAt) return ''
 
-  const elapsed = (Date.now() - startedAt) / 1000
-  const rate = p / Math.max(1, elapsed) // % pro sek
+  const elapsedSec = (Date.now() - startedAt) / 1000
+  const rate = p / Math.max(1, elapsedSec) // % / sec
   if (rate <= 0.01) return ''
 
-  const remaining = (100 - p) / rate // sek
-  if (!isFinite(remaining) || remaining <= 0) return ''
+  const remainingSec = (100 - p) / rate
+  if (!Number.isFinite(remainingSec) || remainingSec <= 0) return ''
 
-  if (remaining < 60) return `~${Math.round(remaining)}s`
-  const m = Math.floor(remaining / 60)
-  const s = Math.round(remaining % 60).toString().padStart(2, '0')
+  if (remainingSec < 60) return `~${Math.round(remainingSec)}s`
+  const m = Math.floor(remainingSec / 60)
+  const s = Math.round(remainingSec % 60).toString().padStart(2, '0')
   return `~${m}:${s}`
 })
 

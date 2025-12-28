@@ -289,10 +289,10 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import AppButton from '@/components/AppButton.vue'
-import { useTripStore } from '@/stores/TripStore'
-import { useMarkerStore } from '@/stores/MarkerStore'
-import { markerCover } from '@/lib/markerImages'
 import { apiFetch } from '@/lib/api'
+import { markerCover } from '@/lib/markerImages'
+import { useMarkerStore } from '@/stores/MarkerStore'
+import { useTripStore } from '@/stores/TripStore'
 
 type MarkerLite = {
   id: number
@@ -301,15 +301,18 @@ type MarkerLite = {
   placeName?: string | null
 }
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  currentTripId: number
-  currentTripTitle?: string | null
-  externalBusy?: boolean
-}>(), {
-  currentTripTitle: null,
-  externalBusy: false,
-})
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    currentTripId: number
+    currentTripTitle?: string | null
+    externalBusy?: boolean
+  }>(),
+  {
+    currentTripTitle: null,
+    externalBusy: false,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -328,26 +331,21 @@ const error = ref<string | null>(null)
 const working = ref(false)
 const lastTouchedId = ref<number | null>(null)
 
-const busy = computed(() => working.value || !!props.externalBusy)
-
-/** ✅ Backend-Wahrheit: welche Marker sind in IRGENDEINEM Trip zugeordnet */
 const assignedIds = ref<Set<number>>(new Set())
 
+const busy = computed(() => working.value || !!props.externalBusy)
+
 async function loadAssignedIds() {
-  const ids = await apiFetch('/trips/assigned-marker-ids') as number[]
+  const ids = (await apiFetch('/trips/assigned-marker-ids')) as number[]
   assignedIds.value = new Set((ids ?? []).map(Number))
 }
 
-/** membership im current trip (über stops) */
-const markerIdsInCurrentTrip = computed(() => new Set((stops.value ?? []).map(s => Number(s.markerId))))
+const markerIdsInCurrentTrip = computed(() => new Set((stops.value ?? []).map((s: any) => Number(s.markerId))))
+
 function isInCurrentTrip(markerId: number) {
   return markerIdsInCurrentTrip.value.has(Number(markerId))
 }
 
-/**
- * ⚠️ Step 2: Trip-Label "best effort" (weil Marker->Trip Mapping fehlt)
- * Wenn du später ein API `marker-assignments` hast, tauschen wir das sauber aus.
- */
 function markerTripId(markerId: number): number | null {
   const m: any = markers.value.find((x: any) => Number(x.id) === Number(markerId))
   const tid = m?.tripId ?? m?.assignedTripId ?? null
@@ -356,7 +354,7 @@ function markerTripId(markerId: number): number | null {
 
 function tripTitleById(id: number | null) {
   if (!id) return null
-  return (trips.value ?? []).find(t => Number(t.id) === Number(id))?.title ?? `Trip ${id}`
+  return (trips.value ?? []).find((t: any) => Number(t.id) === Number(id))?.title ?? `Trip ${id}`
 }
 
 function tripLabelForMarker(markerId: number) {
@@ -365,19 +363,15 @@ function tripLabelForMarker(markerId: number) {
   return tid ? tripTitleById(tid) : null
 }
 
-/** ✅ FIX: "Freie Marker" = NICHT in assignedIds (=> auch nicht im current trip) */
 const freeMarkers = computed(() => {
-  return (markers.value as any as MarkerLite[])
-    .filter(m => !assignedIds.value.has(Number(m.id)))
+  return (markers.value as any as MarkerLite[]).filter((m) => !assignedIds.value.has(Number(m.id)))
 })
 
-/** Step 2 bleibt wie gehabt (best effort via markerTripId) */
 const otherTripMarkers = computed(() => {
-  return (markers.value as any as MarkerLite[])
-    .filter(m => {
-      const tid = markerTripId(Number(m.id))
-      return !!tid && Number(tid) !== Number(props.currentTripId)
-    })
+  return (markers.value as any as MarkerLite[]).filter((m) => {
+    const tid = markerTripId(Number(m.id))
+    return !!tid && Number(tid) !== Number(props.currentTripId)
+  })
 })
 
 const baseList = computed(() => (mode.value === 'free' ? freeMarkers.value : otherTripMarkers.value))
@@ -388,13 +382,55 @@ const visibleMarkers = computed(() => {
 
   if (!s) return list
 
-  return list.filter(m => {
+  return list.filter((m) => {
     const t = (m.title ?? '').toLowerCase()
     const d = (m.description ?? '').toLowerCase()
     const p = (m.placeName ?? '').toLowerCase()
     return t.includes(s) || d.includes(s) || p.includes(s)
   })
 })
+
+function markerCoverSrc(markerId: number): string | null {
+  const m = markers.value.find((x: any) => Number(x.id) === Number(markerId))
+  if (!m) return null
+  try {
+    const c = markerCover(m)
+    return (c?.card ?? c?.thumb ?? null) as any
+  } catch {
+    return null
+  }
+}
+
+function isVideoUrl(u?: string | null) {
+  if (!u) return false
+  const s = String(u).toLowerCase()
+  return (
+    s.includes('/video/upload/') ||
+    s.endsWith('.mp4') ||
+    s.endsWith('.mov') ||
+    s.endsWith('.webm') ||
+    s.endsWith('.ogg') ||
+    s.endsWith('.m4v') ||
+    s.endsWith('.mkv')
+  )
+}
+
+watch(
+  () => props.open,
+  async (o) => {
+    if (!o) return
+    error.value = null
+    q.value = ''
+    mode.value = 'free'
+
+    if (!trips.value?.length) await tripStore.loadTrips?.()
+    if (!markers.value?.length) await markerStore.loadMarkers?.()
+
+    await loadAssignedIds()
+    await tripStore.selectTrip(props.currentTripId)
+  },
+  { immediate: true }
+)
 
 async function addToCurrentTrip(markerId: number) {
   if (busy.value) return
@@ -403,12 +439,14 @@ async function addToCurrentTrip(markerId: number) {
   try {
     await tripStore.addStop(markerId)
 
-    // ✅ refresh, damit der Marker sofort aus "Freie Marker" verschwindet
     await loadAssignedIds()
     if (tripStore.activeTripId) await tripStore.loadStops?.(tripStore.activeTripId)
 
     lastTouchedId.value = markerId
-    setTimeout(() => { if (lastTouchedId.value === markerId) lastTouchedId.value = null }, 900)
+    setTimeout(() => {
+      if (lastTouchedId.value === markerId) lastTouchedId.value = null
+    }, 900)
+
     emit('added')
   } catch (e: any) {
     error.value = 'Konnte Marker nicht hinzufügen.'
@@ -434,63 +472,20 @@ async function reassignToCurrentTrip(markerId: number) {
 
     await tripStore.addStop(markerId)
 
-    // ✅ refresh assignment truth
     await loadAssignedIds()
     if (tripStore.activeTripId) await tripStore.loadStops?.(tripStore.activeTripId)
 
     lastTouchedId.value = markerId
-    setTimeout(() => { if (lastTouchedId.value === markerId) lastTouchedId.value = null }, 900)
+    setTimeout(() => {
+      if (lastTouchedId.value === markerId) lastTouchedId.value = null
+    }, 900)
+
     emit('added')
   } catch (e: any) {
     error.value = 'Konnte Marker nicht übernehmen.'
   } finally {
     working.value = false
   }
-}
-
-watch(
-  () => props.open,
-  async (o) => {
-    if (!o) return
-    error.value = null
-    q.value = ''
-    mode.value = 'free'
-
-    if (!trips.value?.length) await tripStore.loadTrips?.()
-    if (!markers.value?.length) await markerStore.loadMarkers?.()
-
-    // ✅ Wichtig: assignedIds laden (Backend-Wahrheit)
-    await loadAssignedIds()
-
-    // current trip stops laden (für "Bereits in diesem Trip")
-    await tripStore.selectTrip(props.currentTripId)
-  },
-  { immediate: true }
-)
-
-function markerCoverSrc(markerId: number): string | null {
-  const m = markers.value.find((x: any) => Number(x.id) === Number(markerId))
-  if (!m) return null
-  try {
-    const c = markerCover(m)
-    return (c?.card ?? c?.thumb ?? null) as any
-  } catch {
-    return null
-  }
-}
-
-function isVideoUrl(u?: string | null) {
-  if (!u) return false
-  const s = String(u).toLowerCase()
-  return (
-    s.includes('/video/upload/') ||
-    s.endsWith('.mp4') ||
-    s.endsWith('.mov') ||
-    s.endsWith('.webm') ||
-    s.endsWith('.ogg') ||
-    s.endsWith('.m4v') ||
-    s.endsWith('.mkv')
-  )
 }
 </script>
 

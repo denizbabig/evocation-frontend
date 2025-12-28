@@ -1,24 +1,28 @@
+/* Imports */
 import axios from 'axios'
-import { oktaAuth } from '@/lib/oktaAuth'
 import router from '@/router'
+import { oktaAuth } from '@/lib/oktaAuth'
 
+/* Konstanten */
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080/api'
 
+/* Axios Instance */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE ?? '/api',
   timeout: 10000,
   withCredentials: true,
 })
 
-
+/* Interceptors */
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const status = err?.response?.status
 
     if (status === 401) {
-      try { oktaAuth.tokenManager.clear() } catch {}
-
+      try {
+        oktaAuth.tokenManager.clear()
+      } catch {}
 
       const current = router.currentRoute.value
       const requiresAuth = !!current.meta.requiresAuth
@@ -35,21 +39,6 @@ api.interceptors.response.use(
   }
 )
 
-
-export async function login(email: string, password: string) {
-
-  await api.post('/auth/login', { email, password })
-}
-
-export async function logout() {
-  await api.post('/auth/logout')
-}
-
-export async function fetchMe() {
-  const {data} = await api.get('/auth/me')
-  return data
-}
-
 api.interceptors.request.use(async (config) => {
   const token = await oktaAuth.tokenManager.get('accessToken')
   if (token?.accessToken) {
@@ -59,6 +48,21 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
+/* Auth API */
+export async function login(email: string, password: string) {
+  await api.post('/auth/login', { email, password })
+}
+
+export async function logout() {
+  await api.post('/auth/logout')
+}
+
+export async function fetchMe() {
+  const { data } = await api.get('/auth/me')
+  return data
+}
+
+/* Fetch Helper */
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const url = path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`
 
@@ -82,16 +86,17 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     throw new Error(`${options.method ?? 'GET'} ${path} ${res.status}: ${text}`)
   }
 
-
   if (res.status === 204) return null
   const ct = res.headers.get('content-type') ?? ''
   return ct.includes('application/json') ? res.json() : res.text()
 }
 
+/* Share API */
 export async function fetchSharedMarkers(code: string) {
   return apiFetch(`/share/${encodeURIComponent(code)}/markers`)
 }
 
+/* Types */
 export type SavedShareLinkDTO = {
   id: number
   code: string
@@ -100,6 +105,7 @@ export type SavedShareLinkDTO = {
   active?: boolean
 }
 
+/* Saved Share Links API */
 export async function listSavedShareLinks() {
   return apiFetch('/share/saved', { method: 'GET' }) as Promise<SavedShareLinkDTO[]>
 }

@@ -285,53 +285,60 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+/* Imports */
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { logoutRedirect, oktaAuth } from '@/lib/oktaAuth'
-import AppButton from '@/components/AppButton.vue'
 import {
-  HomeIcon,
-  MapIcon,
-  Squares2X2Icon,
-  MapPinIcon,
-  FolderIcon,
-  LinkIcon,
-  UserCircleIcon,
-  SparklesIcon,
-  InformationCircleIcon,
-  ArrowRightOnRectangleIcon,
-  PlayIcon,
-  XMarkIcon,
   ArrowRightIcon,
+  ArrowRightOnRectangleIcon,
+  FolderIcon,
+  HomeIcon,
+  InformationCircleIcon,
+  LinkIcon,
+  MapIcon,
+  MapPinIcon,
+  PlayIcon,
+  SparklesIcon,
+  Squares2X2Icon,
+  UserCircleIcon,
+  XMarkIcon,
 } from '@heroicons/vue/24/outline'
 
-const iconClass = 'h-5 w-5 text-fuchsia-300 mr-3 shrink-0'
+import AppButton from '@/components/AppButton.vue'
+import { logoutRedirect, oktaAuth } from '@/lib/oktaAuth'
 
+/* Props / Emits */
 const props = defineProps<{ isOpen: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
+/* Router */
 const route = useRoute()
 const router = useRouter()
+
+/* UI constants */
+const iconClass = 'h-5 w-5 text-fuchsia-300 mr-3 shrink-0'
 
 const routes = {
   home: '/',
   map: '/map',
   demo: '/map?demo=true',
-
   about: '/about',
   features: '/features',
-
   login: '/login',
   register: '/register',
-
   dashboard: '/dashboard',
   profile: '/profile',
   mapview: '/mapview',
   sharedLinks: '/shared-links',
   trips: '/trips',
-  marker: '/marker'
-}
+  marker: '/marker',
+} as const
 
+/* State */
+const panelRef = ref<HTMLElement | null>(null)
+const isAuthenticated = ref(false)
+
+/* Helpers */
 function closeOnly() {
   emit('close')
 }
@@ -339,17 +346,13 @@ function closeOnly() {
 function activeClass(pathPrefix: string) {
   const p = route.path
 
-  // Home nur exakt
-  if (pathPrefix === '/') {
-    return p === '/' ? 'sidebar-link--active' : ''
-  }
+  if (pathPrefix === '/') return p === '/' ? 'sidebar-link--active' : ''
 
-  // “echtes Prefix”: entweder exakt /foo oder /foo/...
   const isActive = p === pathPrefix || p.startsWith(pathPrefix + '/')
   return isActive ? 'sidebar-link--active' : ''
 }
 
-const isAuthenticated = ref(false)
+/* Effects */
 let unsubscribe: null | (() => void) = null
 
 onMounted(() => {
@@ -359,6 +362,7 @@ onMounted(() => {
   const handler = (authState: any) => {
     isAuthenticated.value = !!authState?.isAuthenticated
   }
+
   oktaAuth.authStateManager.subscribe(handler)
   unsubscribe = () => oktaAuth.authStateManager.unsubscribe(handler)
 })
@@ -367,7 +371,6 @@ onBeforeUnmount(() => {
   unsubscribe?.()
 })
 
-const panelRef = ref<HTMLElement | null>(null)
 watch(
   () => props.isOpen,
   async (open) => {
@@ -377,10 +380,13 @@ watch(
   }
 )
 
+/* Actions */
 async function onLogout() {
   try {
     emit('close')
-    try { oktaAuth.tokenManager.clear() } catch {}
+    try {
+      oktaAuth.tokenManager.clear()
+    } catch {}
     await logoutRedirect()
   } catch (e) {
     console.error('[logout] failed', e)

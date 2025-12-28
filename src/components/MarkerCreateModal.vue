@@ -381,7 +381,7 @@
                             class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                             loading="lazy"
                           />
-                          <div v-else class="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent" />
+                          <div v-else class="absolute inset-0 bg -gradient-to-br from-white/10 via-white/5 to-transparent" />
 
                           <div class="absolute inset-0 bg-black/15" />
                           <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
@@ -484,22 +484,21 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import AppButton from '@/components/AppButton.vue'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
-import { primaryLabel } from '@/lib/reverseGeocode'
+import SavingOverlay from '@/components/SavingOverlay.vue'
 import { uploadToCloudinary } from '@/lib/cloudinary'
-import type { ImageAsset } from '@/types/ImageAsset'
-import type { NewMarker } from '@/types/Marker'
-import type { Visibility } from '@/types/Marker'
+import { primaryLabel } from '@/lib/reverseGeocode'
 import { useTripStore } from '@/stores/TripStore'
+import type { CategoryId } from '@/types/CategoryId'
+import type { ImageAsset } from '@/types/ImageAsset'
+import type { NewMarker, Visibility } from '@/types/Marker'
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import SavingOverlay from '@/components/SavingOverlay.vue'
-import type { CategoryId } from '@/types/CategoryId' // oder wo dein CategoryId jetzt liegt
-// alternativ: import type { CategoryId } from '@/types/Marker' falls dort definiert
 
+/* Types */
 type CategoryOption = { id: CategoryId; label: string }
-
 
 type PendingMedia = {
   id: string
@@ -512,66 +511,88 @@ type PendingMedia = {
   isCover: boolean
 }
 
-const props = withDefaults(defineProps<{
-  open: boolean
-  categories?: CategoryOption[]
-  saving?: boolean
-  defaultLat?: number
-  defaultLng?: number
-  useGeolocation?: boolean
-  showPlaceSearch?: boolean
-}>(), {
-  categories: () => [
-    { id: 'TRAVEL',   label: 'Reise' },
-    { id: 'FOOD',     label: 'Essen' },
-    { id: 'CULTURE',  label: 'Sightseeing / Kultur' },
-    { id: 'SHOPPING', label: 'Shopping' },
-    { id: 'NATURE',   label: 'Natur' },
-    // optional:
-    // { id: 'ADVENTURE', label: 'Abenteuer' },
-    // { id: 'SPORT', label: 'Sport' },
-  ],
-  saving: false,
-  defaultLat: 52.520008,
-  defaultLng: 13.404954,
-  useGeolocation: true,
-  showPlaceSearch: true,
-})
+type CreateSubmitPayload = {
+  marker: NewMarker
+  tripId: number | null
+}
+
+/* Props / Emits */
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    categories?: CategoryOption[]
+    saving?: boolean
+    defaultLat?: number
+    defaultLng?: number
+    useGeolocation?: boolean
+    showPlaceSearch?: boolean
+  }>(),
+  {
+    categories: () => [
+      { id: 'TRAVEL', label: 'Reise' },
+      { id: 'FOOD', label: 'Essen' },
+      { id: 'CULTURE', label: 'Sightseeing / Kultur' },
+      { id: 'SHOPPING', label: 'Shopping' },
+      { id: 'NATURE', label: 'Natur' },
+    ],
+    saving: false,
+    defaultLat: 52.520008,
+    defaultLng: 13.404954,
+    useGeolocation: true,
+    showPlaceSearch: true,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'submit', payload: { marker: NewMarker; tripId: number | null }): void
+  (e: 'submit', payload: CreateSubmitPayload): void
 }>()
 
-const categories = computed(() => props.categories ?? [])
-
+/* Static */
 const steps = ['Bilder', 'Details', 'Überprüfen']
-const step = ref(0)
-const stepProgress = computed(() => step.value / (steps.length - 1))
 
-/** Trip Dropdown */
+/* Stores */
 const tripStore = useTripStore()
 const { trips } = storeToRefs(tripStore)
+
+/* State */
+const step = ref(0)
+const placeQuery = ref('')
 const selectedTripId = ref<number | null>(null)
 
+const pendingMedia = ref<PendingMedia[]>([])
+const uploadError = ref<string | null>(null)
+const uploading = ref(false)
+
+const fileInputEl = ref<HTMLInputElement | null>(null)
+const scrollEl = ref<HTMLDivElement | null>(null)
+const dateInput = ref<HTMLInputElement | null>(null)
+
+const placeLoading = ref(false)
+let placeAbort: AbortController | null = null
+let raf = 0
+
+/* Derived */
+const categories = computed(() => props.categories ?? [])
+const stepProgress = computed(() => step.value / (steps.length - 1))
+const busy = computed(() => !!props.saving || uploading.value)
+
 const tripOptions = computed(() =>
-  (trips.value ?? []).map(t => ({ id: Number(t.id), title: (t.title ?? 'Ohne Titel') }))
+  (trips.value ?? []).map((t) => ({ id: Number(t.id), title: t.title ?? 'Ohne Titel' }))
 )
 
 const selectedTripLabel = computed(() => {
-  if (!selectedTripId.value) return null
-  return tripOptions.value.find(t => t.id === selectedTripId.value)?.title ?? null
+  const id = selectedTripId.value
+  if (!id) return null
+  return tripOptions.value.find((t) => t.id === id)?.title ?? null
 })
 
-/** Form */
 function ymd(d = new Date()) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
-
-const placeQuery = ref('')
 
 const form = reactive<NewMarker>({
   title: '',
@@ -587,14 +608,27 @@ const form = reactive<NewMarker>({
 
 const isValid = computed(() => !!form.title?.trim() && !!form.occurredAt)
 
-/** Media state */
-const pendingMedia = ref<PendingMedia[]>([])
-const uploadError = ref<string | null>(null)
-const uploading = ref(false)
+const allUploaded = computed(() => pendingMedia.value.length > 0 && pendingMedia.value.every((p) => !!p.uploaded))
+const coverMedia = computed(() => pendingMedia.value.find((p) => p.isCover) ?? pendingMedia.value[0] ?? null)
 
-const fileInputEl = ref<HTMLInputElement | null>(null)
-const scrollEl = ref<HTMLDivElement | null>(null)
+const overlayItems = computed(() =>
+  pendingMedia.value.map((p) => ({
+    uploading: !!p.uploading,
+    uploaded: p.uploaded,
+    error: p.error ?? null,
+    isVideo: p.kind === 'video',
+  }))
+)
 
+const dateDisplay = computed(() => {
+  const v = String(form.occurredAt || '').trim()
+  if (!v || !v.includes('-')) return v
+  const [y, m, d] = v.split('-')
+  if (!y || !m || !d) return v
+  return `${d}.${m}.${y}`
+})
+
+/* Media helpers */
 function uid() {
   return crypto.randomUUID?.() ?? String(Math.random()).slice(2)
 }
@@ -604,41 +638,30 @@ function clearPending() {
   pendingMedia.value = []
   uploadError.value = null
 }
-onBeforeUnmount(clearPending)
-
-const allUploaded = computed(() =>
-  pendingMedia.value.length > 0 && pendingMedia.value.every(p => !!p.uploaded)
-)
-
-const coverMedia = computed(() => {
-  return pendingMedia.value.find(p => p.isCover) ?? pendingMedia.value[0] ?? null
-})
-
-const coverPreview = computed(() => coverMedia.value?.previewUrl ?? null)
-
-const coverIsVideo = computed(() => coverMedia.value?.kind === 'video')
 
 function pickFiles() {
   fileInputEl.value?.click()
 }
 
 function addFiles(files: File[]) {
-  const accepted = files.filter(f => f.type?.startsWith('image/') || f.type?.startsWith('video/'))
+  uploadError.value = null
+
+  const accepted = files.filter((f) => f.type?.startsWith('image/') || f.type?.startsWith('video/'))
   if (!accepted.length) return
 
   const VIDEO_LIMIT = 2
-  const existingVideoCount = pendingMedia.value.filter(p => p.kind === 'video').length
-  const incomingVideos = accepted.filter(f => f.type?.startsWith('video/'))
-  const maxVideosWeCanAdd = Math.max(0, VIDEO_LIMIT - existingVideoCount)
+  const existingVideoCount = pendingMedia.value.filter((p) => p.kind === 'video').length
+  const incomingVideoCount = accepted.filter((f) => f.type?.startsWith('video/')).length
 
-  if (incomingVideos.length > maxVideosWeCanAdd) {
+  const maxVideosWeCanAdd = Math.max(0, VIDEO_LIMIT - existingVideoCount)
+  if (incomingVideoCount > maxVideosWeCanAdd) {
     uploadError.value = `Du kannst aktuell maximal ${VIDEO_LIMIT} Videos pro Marker hinzufügen.`
   }
 
   let videosAdded = 0
 
   for (const file of accepted) {
-    const kind: 'image' | 'video' = file.type?.startsWith('video/') ? 'video' : 'image'
+    const kind: PendingMedia['kind'] = file.type?.startsWith('video/') ? 'video' : 'image'
 
     if (kind === 'video') {
       if (existingVideoCount + videosAdded >= VIDEO_LIMIT) continue
@@ -657,6 +680,8 @@ function addFiles(files: File[]) {
       isCover: pendingMedia.value.length === 0,
     })
   }
+
+  requestAnimationFrame(updateScrollHints)
 }
 
 function onPickFiles(e: Event) {
@@ -668,20 +693,29 @@ function onPickFiles(e: Event) {
 }
 
 function removePending(id: string) {
-  const idx = pendingMedia.value.findIndex(p => p.id === id)
+  const idx = pendingMedia.value.findIndex((p) => p.id === id)
   if (idx === -1) return
+
   URL.revokeObjectURL(pendingMedia.value[idx].previewUrl)
   pendingMedia.value.splice(idx, 1)
-  if (!pendingMedia.value.some(p => p.isCover) && pendingMedia.value.length) {
+
+  if (!pendingMedia.value.some((p) => p.isCover) && pendingMedia.value.length) {
     pendingMedia.value[0].isCover = true
   }
+
+  requestAnimationFrame(updateScrollHints)
 }
 
 function setCover(id: string) {
   for (const p of pendingMedia.value) p.isCover = p.id === id
 }
 
-/** Upload (intern, wird beim Speichern aufgerufen) -> form.images setzen */
+/* Upload */
+function orderWithCoverFirst(list: PendingMedia[]) {
+  const cover = list.find((p) => p.isCover)
+  return [...(cover ? [cover] : []), ...list.filter((p) => p !== cover)]
+}
+
 async function uploadAllIfNeeded() {
   uploadError.value = null
 
@@ -690,28 +724,22 @@ async function uploadAllIfNeeded() {
     return
   }
 
-  const anyMissing = pendingMedia.value.some(p => !p.uploaded)
+  const ordered = orderWithCoverFirst(pendingMedia.value)
+
+  const anyMissing = ordered.some((p) => !p.uploaded)
   if (!anyMissing) {
-    // ensure order + images sync
-    const cover = pendingMedia.value.find(p => p.isCover)
-    const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter(p => p !== cover)]
-    for (let i = 0; i < ordered.length; i++) {
-      if (ordered[i].uploaded) ordered[i].uploaded!.order = i
-    }
-    form.images = ordered.map(p => p.uploaded).filter(Boolean) as ImageAsset[]
+    ordered.forEach((p, i) => {
+      if (p.uploaded) p.uploaded.order = i
+    })
+    form.images = ordered.map((p) => p.uploaded).filter(Boolean) as ImageAsset[]
     return
   }
 
   uploading.value = true
-
-  const cover = pendingMedia.value.find(p => p.isCover)
-  const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter(p => p !== cover)]
-
   try {
     for (let i = 0; i < ordered.length; i++) {
       const p = ordered[i]
 
-      // wenn schon uploaded: nur order korrigieren
       if (p.uploaded) {
         p.uploaded.order = i
         continue
@@ -726,100 +754,84 @@ async function uploadAllIfNeeded() {
       } catch (err: any) {
         p.error = err?.message ?? 'Upload fehlgeschlagen'
         uploadError.value = p.error
-        throw new Error(uploadError.value)
+        throw new Error(p.error)
       } finally {
         p.uploading = false
       }
     }
 
-    form.images = ordered.map(p => p.uploaded).filter(Boolean) as ImageAsset[]
+    form.images = ordered.map((p) => p.uploaded).filter(Boolean) as ImageAsset[]
   } finally {
     uploading.value = false
   }
 }
 
-/** Busy state */
-const busy = computed(() => !!props.saving || uploading.value)
-
-/** Open/Reset */
-watch(
-  () => props.open,
-  async (o) => {
-    if (!o) {
-      clearPending()
-      return
-    }
-
-    step.value = 0
-    selectedTripId.value = null
-    placeQuery.value = ''
-
-    clearPending()
-
-    form.title = ''
-    form.description = ''
-    form.categoryId = null
-    form.occurredAt = ymd()
-    form.lat = props.defaultLat
-    form.lng = props.defaultLng
-    form.images = []
-    form.visibility = 'PRIVATE'
-    form.placeName = null
-
-    if (!trips.value.length) await tripStore.loadTrips()
-
-    // ✅ Wenn du aus Map-Click kommst (defaultLat/defaultLng), direkt Ort ermitteln
-    await resolvePlaceFromCoords()
-
-    // ⚠️ Geolocation kann deinen Map-Click überschreiben
-    // => In MapView am besten :useGeolocation="false" setzen
-    if (props.useGeolocation && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async ({ coords }) => {
-          form.lat = coords.latitude
-          form.lng = coords.longitude
-          // ✅ nach Geo-Update auch Ort ermitteln (falls placeName noch leer)
-          await resolvePlaceFromCoords()
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 4000 }
-      )
-    }
-  },
-  { immediate: true }
-)
-
-/** Geo events */
+/* Place search + reverse geocode */
 function onSelectPlace(s: { lat: number; lon: number; display_name: string }) {
   if (!props.showPlaceSearch) return
+
   form.lat = Number(s.lat)
   form.lng = Number(s.lon)
-  form.placeName = primaryLabel(s.display_name)
-  placeQuery.value = form.placeName ?? ''
-  if (!form.title?.trim()) form.title = primaryLabel(s.display_name)
+
+  const label = primaryLabel(s.display_name)
+  form.placeName = label
+  placeQuery.value = label
+
+  if (!form.title?.trim()) form.title = label
 }
 
 function onPlaceSearch(payload: { query: string; best?: { lat: string; lon: string; display_name?: string } }) {
   if (!props.showPlaceSearch) return
   if (!payload.best) return
+
   form.lat = Number(payload.best.lat)
   form.lng = Number(payload.best.lon)
+
   const dn = payload.best.display_name ?? payload.query
   const label = primaryLabel(dn)
   form.placeName = label
   placeQuery.value = label
+
   if (!form.title?.trim()) form.title = label
 }
 
-/** Date display */
-const dateDisplay = computed(() => {
-  const v = String(form.occurredAt || '').trim()
-  if (!v || !v.includes('-')) return v
-  const [y, m, d] = v.split('-')
-  if (!y || !m || !d) return v
-  return `${d}.${m}.${y}`
-})
-const dateInput = ref<HTMLInputElement | null>(null)
+async function resolvePlaceFromCoords() {
+  if (!props.open) return
+  if (form.placeName?.trim()) return
+  if (!Number.isFinite(form.lat) || !Number.isFinite(form.lng)) return
+
+  placeAbort?.abort()
+  placeAbort = new AbortController()
+
+  placeLoading.value = true
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(form.lat))}&lon=${encodeURIComponent(String(form.lng))}`
+
+    const res = await fetch(url, {
+      signal: placeAbort.signal,
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) throw new Error('reverse geocode failed')
+
+    const data = await res.json()
+    const label = primaryLabel(data?.display_name ?? '')
+
+    if (label) {
+      form.placeName = label
+      placeQuery.value = label
+      if (!form.title?.trim()) form.title = label
+    }
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') {
+      // silent
+    }
+  } finally {
+    placeLoading.value = false
+  }
+}
+
+/* UI actions */
 function openDatePicker() {
   const el = dateInput.value
   if (!el) return
@@ -829,23 +841,20 @@ function openDatePicker() {
   else el.click()
 }
 
-/** Visibility */
 function toggleVisibility() {
   form.visibility = (form.visibility === 'PRIVATE' ? 'PUBLIC' : 'PRIVATE') as Visibility
 }
 
-/** Step navigation */
 function nextStep() {
   step.value = Math.min(2, step.value + 1)
 }
 
-/** Submit (✅ lädt Medien automatisch hoch) */
+/* Submit */
 async function onSubmit() {
   if (!isValid.value || busy.value) return
   uploadError.value = null
 
   try {
-    // ✅ Upload passiert erst hier
     await uploadAllIfNeeded()
 
     emit('submit', {
@@ -859,20 +868,15 @@ async function onSubmit() {
       tripId: selectedTripId.value ?? null,
     })
   } catch (e: any) {
-    // ✅ bei Upload-Fehler zurück zu Step 1
     uploadError.value = e?.message ?? uploadError.value ?? 'Upload fehlgeschlagen'
     step.value = 0
   }
 }
 
-/** Scroll hints */
+/* Scroll hints */
 const showScrollLeft = ref(false)
 const showScrollRight = ref(false)
-let raf = 0
-function onScroll() {
-  cancelAnimationFrame(raf)
-  raf = requestAnimationFrame(updateScrollHints)
-}
+
 function updateScrollHints() {
   const el = scrollEl.value
   if (!el) {
@@ -884,12 +888,19 @@ function updateScrollHints() {
   showScrollLeft.value = el.scrollLeft > EPS
   showScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - EPS
 }
+
+function onScroll() {
+  cancelAnimationFrame(raf)
+  raf = requestAnimationFrame(updateScrollHints)
+}
+
 function scrollLeft() {
   const el = scrollEl.value
   if (!el) return
   el.scrollBy({ left: -320, behavior: 'smooth' })
   requestAnimationFrame(updateScrollHints)
 }
+
 function scrollRight() {
   const el = scrollEl.value
   if (!el) return
@@ -897,6 +908,7 @@ function scrollRight() {
   requestAnimationFrame(updateScrollHints)
 }
 
+/* Inline components */
 const GlowInputShell = defineComponent({
   name: 'GlowInputShell',
   setup() {
@@ -929,85 +941,93 @@ const SummaryBox = defineComponent({
     value: { type: [String, Number], default: '—' },
     multiline: { type: Boolean, default: false },
   },
-  setup(props) {
+  setup(p) {
     return () =>
       h('div', { class: 'relative group isolate' }, [
-        h('div', { class: 'pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300' }, [
-          h('div', {
-            class:
-              'absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]',
-          }),
-          h('div', {
-            class:
-              'absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20',
-          }),
-          h('div', { class: 'absolute inset-[1px] rounded-[14px] bg-[#0e162c]' }),
-        ]),
+        h(
+          'div',
+          { class: 'pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300' },
+          [
+            h('div', {
+              class:
+                'absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]',
+            }),
+            h('div', {
+              class:
+                'absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20',
+            }),
+            h('div', { class: 'absolute inset-[1px] rounded-[14px] bg-[#0e162c]' }),
+          ]
+        ),
         h('div', { class: 'relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5' }, [
-          h('div', { class: 'text-xs text-white/45 mb-1' }, props.label),
-          props.multiline
+          h('div', { class: 'text-xs text-white/45 mb-1' }, p.label),
+          p.multiline
             ? h(
               'div',
               { class: 'text-white/90 whitespace-pre-wrap break-words max-h-48 overflow-auto evoc-scroll pr-1' },
-              String(props.value ?? '—')
+              String(p.value ?? '—')
             )
-            : h('div', { class: 'text-white/90' }, String(props.value ?? '—')),
+            : h('div', { class: 'text-white/90' }, String(p.value ?? '—')),
         ]),
       ])
   },
 })
 
-const placeLoading = ref(false)
-let placeAbort: AbortController | null = null
+/* Reset on open */
+async function resetOnOpen() {
+  step.value = 0
+  selectedTripId.value = null
+  placeQuery.value = ''
+  clearPending()
 
-async function resolvePlaceFromCoords() {
-  if (!props.open) return
-  if (form.placeName?.trim()) return
-  if (!Number.isFinite(form.lat) || !Number.isFinite(form.lng)) return
+  form.title = ''
+  form.description = ''
+  form.categoryId = null
+  form.occurredAt = ymd()
+  form.lat = props.defaultLat
+  form.lng = props.defaultLng
+  form.images = []
+  form.visibility = 'PRIVATE'
+  form.placeName = null
 
-  placeAbort?.abort()
-  placeAbort = new AbortController()
+  if (!trips.value.length) await tripStore.loadTrips()
+  await resolvePlaceFromCoords()
 
-  placeLoading.value = true
-  try {
-    const url =
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(form.lat))}&lon=${encodeURIComponent(String(form.lng))}`
-
-    const res = await fetch(url, {
-      signal: placeAbort.signal,
-      headers: { Accept: 'application/json' },
-    })
-    if (!res.ok) throw new Error('reverse geocode failed')
-
-    const data = await res.json()
-    const label = primaryLabel(data?.display_name ?? '')
-
-    if (label) {
-      form.placeName = label
-      placeQuery.value = label
-      // optional: wenn Titel leer, setz ihn auch
-      if (!form.title?.trim()) form.title = label
-    }
-  } catch (e: any) {
-    // ignore aborts, keep silent otherwise
-    if (e?.name !== 'AbortError') {
-      // optional fallback:
-      // form.placeName = `${form.lat.toFixed(5)}, ${form.lng.toFixed(5)}`
-    }
-  } finally {
-    placeLoading.value = false
+  if (props.useGeolocation && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        form.lat = coords.latitude
+        form.lng = coords.longitude
+        await resolvePlaceFromCoords()
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 4000 }
+    )
   }
+
+  requestAnimationFrame(updateScrollHints)
 }
 
-const overlayItems = computed(() =>
-  pendingMedia.value.map(p => ({
-    uploading: !!p.uploading,
-    uploaded: p.uploaded,
-    error: p.error ?? null,
-    isVideo: p.kind === 'video',
-  }))
+/* Watches */
+watch(
+  () => props.open,
+  async (o) => {
+    if (!o) {
+      clearPending()
+      placeAbort?.abort()
+      return
+    }
+    await resetOnOpen()
+  },
+  { immediate: true }
 )
 
+/* Cleanup */
+onBeforeUnmount(() => {
+  clearPending()
+  placeAbort?.abort()
+  cancelAnimationFrame(raf)
+})
 </script>
 
 <style scoped>

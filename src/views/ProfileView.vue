@@ -155,18 +155,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+
 import AppButton from '@/components/AppButton.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
+
 import gemini2 from '@/assets/gemini2.png'
+
 import { oktaAuth } from '@/lib/oktaAuth'
 
 defineOptions({ name: 'MyProfileView' })
 
 const router = useRouter()
-const isSidebarOpen = ref(false)
 
+const isSidebarOpen = ref(false)
 const oktaProfile = ref<Record<string, any>>({})
 
 async function reloadProfile() {
@@ -174,12 +177,12 @@ async function reloadProfile() {
   oktaProfile.value = id?.claims ?? {}
 }
 
-function goHome() {
-  router.push('/')
-}
-
 function goDashboard() {
   router.push('/dashboard')
+}
+
+function goHome() {
+  router.push('/')
 }
 
 onMounted(async () => {

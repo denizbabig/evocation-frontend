@@ -281,11 +281,12 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { uploadToCloudinary } from '@/lib/cloudinary'
 import AppButton from '@/components/AppButton.vue'
 import SavingOverlay from '@/components/SavingOverlay.vue'
+import { uploadToCloudinary } from '@/lib/cloudinary'
 import type { Visibility } from '@/types/Marker'
 
+/* Props */
 const props = withDefaults(
   defineProps<{
     open: boolean
@@ -304,6 +305,7 @@ const props = withDefaults(
   }
 )
 
+/* Emits */
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'change', payload: {
@@ -314,6 +316,7 @@ const emit = defineEmits<{
   }): void
 }>()
 
+/* Refs/State */
 const fileEl = ref<HTMLInputElement | null>(null)
 const pendingFile = ref<File | null>(null)
 const previewUrl = ref<string | null>(null)
@@ -323,24 +326,27 @@ const error = ref<string | null>(null)
 
 const title = ref('')
 const titleTouched = ref(false)
-const titleOk = computed(() => !!title.value.trim())
 
 const coverUrl = ref<string | null>(null)
 const coverPublicId = ref<string | null>(null)
 const visibility = ref<Visibility>('PRIVATE')
 
-const busy = computed(() => uploading.value || !!props.externalBusy)
-
-/** ✅ determinate overlay progress */
 const overlayProgress = ref<number | null>(null)
 
+/* Computeds */
+const titleOk = computed(() => !!title.value.trim())
+const busy = computed(() => uploading.value || !!props.externalBusy)
+
+const hasVisual = computed(() => !!(previewUrl.value || coverUrl.value))
+const pickLabel = computed(() => (hasVisual.value ? 'Neues Bild auswählen' : 'Bild auswählen'))
+
+/* Helpers */
 function revokePreview() {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = null
 }
-onBeforeUnmount(revokePreview)
 
-/** Props -> local state */
+/* Watchers */
 watch(
   () => [props.initialTitle, props.initialCoverUrl, props.initialCoverPublicId, props.initialVisibility] as const,
   ([t, u, pid, vis]) => {
@@ -352,7 +358,6 @@ watch(
   { immediate: true }
 )
 
-/** Reset on open */
 watch(
   () => props.open,
   (o) => {
@@ -365,6 +370,7 @@ watch(
   }
 )
 
+/* UI Handlers */
 function onPick(e: Event) {
   error.value = null
   const input = e.target as HTMLInputElement
@@ -381,6 +387,16 @@ function toggleVisibility() {
   visibility.value = visibility.value === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
 }
 
+function clear() {
+  if (busy.value) return
+  error.value = null
+  pendingFile.value = null
+  revokePreview()
+  coverUrl.value = null
+  coverPublicId.value = null
+}
+
+/* Final Actions */
 async function commit() {
   if (busy.value) return
   titleTouched.value = true
@@ -418,18 +434,8 @@ async function commit() {
   }
 }
 
-function clear() {
-  if (busy.value) return
-  error.value = null
-  pendingFile.value = null
-  revokePreview()
-  coverUrl.value = null
-  coverPublicId.value = null
-  // Titel bleibt unverändert
-}
-
-const hasVisual = computed(() => !!(previewUrl.value || coverUrl.value))
-const pickLabel = computed(() => (hasVisual.value ? 'Neues Bild auswählen' : 'Bild auswählen'))
+/* Lifecycle */
+onBeforeUnmount(revokePreview)
 </script>
 
 <style scoped>

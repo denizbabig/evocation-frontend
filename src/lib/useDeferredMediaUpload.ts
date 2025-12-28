@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { ImageAsset } from '@/types/ImageAsset'
 
+/* Types */
 export type MediaKind = 'image' | 'video'
 
 export type PendingMedia = {
@@ -10,29 +11,38 @@ export type PendingMedia = {
   isCover: boolean
   uploading: boolean
   error?: string | null
-
-  // entweder neu…
   file?: File
-
-  // …oder bereits vorhanden
   uploaded?: ImageAsset
-  // interne Info: ob previewUrl von ObjectURL kommt
   _objectUrl?: boolean
 }
 
 type UploadFn = (file: File, opts?: { log?: boolean; order?: number }) => Promise<ImageAsset>
 
+/* Composable */
 export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?: number }) {
+  /* Konstanten */
   const VIDEO_LIMIT = opts?.videoLimit ?? 2
 
+  /* State */
   const pendingMedia = ref<PendingMedia[]>([])
   const uploadError = ref<string | null>(null)
   const uploading = ref(false)
 
+  /* Computeds */
+  const coverItem = computed(() => pendingMedia.value.find((p) => p.isCover) ?? pendingMedia.value[0] ?? null)
+
+  /* Pure Helpers */
   function uid() {
     return crypto.randomUUID?.() ?? String(Math.random()).slice(2)
   }
 
+  function guessKindFromUrl(url: string): MediaKind {
+    const u = (url ?? '').toLowerCase()
+    if (u.match(/\.(mp4|mov|webm|m4v)(\?|#|$)/)) return 'video'
+    return 'image'
+  }
+
+  /* Cleanup */
   function clearPending() {
     for (const p of pendingMedia.value) {
       if (p._objectUrl) URL.revokeObjectURL(p.previewUrl)
@@ -42,28 +52,33 @@ export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?:
   }
   onBeforeUnmount(clearPending)
 
-  const coverItem = computed(() => pendingMedia.value.find(p => p.isCover) ?? pendingMedia.value[0] ?? null)
-
+  /* UI Handlers */
   function setCover(id: string) {
     for (const p of pendingMedia.value) p.isCover = p.id === id
   }
 
   function removePending(id: string) {
-    const idx = pendingMedia.value.findIndex(p => p.id === id)
+    const idx = pendingMedia.value.findIndex((p) => p.id === id)
     if (idx === -1) return
+
     const p = pendingMedia.value[idx]
     if (p._objectUrl) URL.revokeObjectURL(p.previewUrl)
+
     pendingMedia.value.splice(idx, 1)
-    if (!pendingMedia.value.some(x => x.isCover) && pendingMedia.value.length) pendingMedia.value[0].isCover = true
+
+    if (!pendingMedia.value.some((x) => x.isCover) && pendingMedia.value.length) {
+      pendingMedia.value[0].isCover = true
+    }
   }
 
   function addFiles(files: File[]) {
-    const accepted = files.filter(f => f.type?.startsWith('image/') || f.type?.startsWith('video/'))
+    const accepted = files.filter((f) => f.type?.startsWith('image/') || f.type?.startsWith('video/'))
     if (!accepted.length) return
 
-    const existingVideoCount = pendingMedia.value.filter(p => p.kind === 'video').length
-    const incomingVideos = accepted.filter(f => f.type?.startsWith('video/')).length
+    const existingVideoCount = pendingMedia.value.filter((p) => p.kind === 'video').length
+    const incomingVideos = accepted.filter((f) => f.type?.startsWith('video/')).length
     const maxVideosWeCanAdd = Math.max(0, VIDEO_LIMIT - existingVideoCount)
+
     if (incomingVideos > maxVideosWeCanAdd) {
       uploadError.value = `Du kannst aktuell maximal ${VIDEO_LIMIT} Videos pro Marker hinzufügen.`
     }
@@ -71,6 +86,7 @@ export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?:
     let videosAdded = 0
     for (const file of accepted) {
       const kind: MediaKind = file.type.startsWith('video/') ? 'video' : 'image'
+
       if (kind === 'video') {
         if (existingVideoCount + videosAdded >= VIDEO_LIMIT) continue
         videosAdded++
@@ -91,14 +107,7 @@ export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?:
     }
   }
 
-  /** Für Edit-Modals: vorhandene Assets reinladen (kein Upload nötig) */
-  function guessKindFromUrl(url: string): MediaKind {
-    const u = (url ?? '').toLowerCase()
-    // Cloudinary typische Video-Endungen
-    if (u.match(/\.(mp4|mov|webm|m4v)(\?|#|$)/)) return 'video'
-    return 'image'
-  }
-
+  /* Init/Mapping */
   function seedFromAssets(assets: ImageAsset[]) {
     for (const a of (assets ?? []).slice().sort((x, y) => (x.order ?? 0) - (y.order ?? 0))) {
       const url = (a as any).url ?? (a as any).secureUrl ?? (a as any).src ?? ''
@@ -113,21 +122,24 @@ export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?:
         isCover: (a.order ?? 0) === 0,
       })
     }
-    if (!pendingMedia.value.some(p => p.isCover) && pendingMedia.value.length) pendingMedia.value[0].isCover = true
+
+    if (!pendingMedia.value.some((p) => p.isCover) && pendingMedia.value.length) {
+      pendingMedia.value[0].isCover = true
+    }
   }
 
-  /** Liefert Assets in finaler Reihenfolge (Cover zuerst) + setzt order */
+  /* Upload/Transform */
   function buildOrderedAssets(): ImageAsset[] {
-    const cover = pendingMedia.value.find(p => p.isCover)
-    const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter(p => p !== cover)]
+    const cover = pendingMedia.value.find((p) => p.isCover)
+    const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter((p) => p !== cover)]
 
     for (let i = 0; i < ordered.length; i++) {
       if (ordered[i].uploaded) ordered[i].uploaded!.order = i
     }
-    return ordered.map(p => p.uploaded).filter(Boolean) as ImageAsset[]
+
+    return ordered.map((p) => p.uploaded).filter(Boolean) as ImageAsset[]
   }
 
-  /** Uploadt nur die Items, die ein file haben und noch nicht uploaded sind */
   async function uploadAllIfNeeded() {
     uploadError.value = null
 
@@ -135,19 +147,17 @@ export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?:
 
     uploading.value = true
     try {
-      const cover = pendingMedia.value.find(p => p.isCover)
-      const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter(p => p !== cover)]
+      const cover = pendingMedia.value.find((p) => p.isCover)
+      const ordered = [...(cover ? [cover] : []), ...pendingMedia.value.filter((p) => p !== cover)]
 
       for (let i = 0; i < ordered.length; i++) {
         const p = ordered[i]
 
-        // schon vorhanden? -> nur order
         if (p.uploaded && !p.file) {
           p.uploaded.order = i
           continue
         }
 
-        // neu und noch nicht uploaded
         if (p.file && !p.uploaded) {
           p.uploading = true
           p.error = null
@@ -172,6 +182,7 @@ export function useDeferredMediaUpload(uploadFn: UploadFn, opts?: { videoLimit?:
     }
   }
 
+  /* Public API */
   return {
     pendingMedia,
     uploadError,

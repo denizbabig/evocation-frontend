@@ -287,10 +287,11 @@
 </template>
 
 <script setup lang="ts">
-/* ----------------------------- Imports ----------------------------- */
+/* Imports */
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import { CameraIcon, GlobeEuropeAfricaIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 
 import AppButton from '@/components/AppButton.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -302,21 +303,19 @@ import ShareLinkModal from '@/components/ShareModal.vue'
 
 import gemini2 from '@/assets/gemini2.png'
 
-import { useMarkerStore } from '@/stores/MarkerStore'
-import { useTripStore } from '@/stores/TripStore'
 import { apiFetch } from '@/lib/api'
 import { markerCover } from '@/lib/markerImages'
 import { reversePlaceName } from '@/lib/reverseGeocode'
 
-import type { NewMarker } from '@/types/Marker'
+import { useMarkerStore } from '@/stores/MarkerStore'
+import { useTripStore } from '@/stores/TripStore'
+
 import type { CategoryId } from '@/types/CategoryId'
+import type { NewMarker } from '@/types/Marker'
 
-import { CameraIcon, GlobeEuropeAfricaIcon, MapPinIcon } from '@heroicons/vue/24/outline'
-
+/* Constants */
 defineOptions({ name: 'MarkersView' })
 
-/* ------------------------ Constants / Catalog ----------------------- */
-// gleiche Options wie MapView
 const categoryOptions: { id: CategoryId; label: string }[] = [
   { id: 'TRAVEL', label: 'Reise' },
   { id: 'FOOD', label: 'Essen' },
@@ -347,13 +346,7 @@ const categoryIconMap: Record<CategoryId, any> = {
   SPORT: MapPinIcon,
 }
 
-/* ----------------------- External dependencies ---------------------- */
-const router = useRouter()
-const markerStore = useMarkerStore()
-const tripStore = useTripStore()
-const { markers, isLoading, isSaving } = storeToRefs(markerStore)
-
-/* ------------------------------ State ------------------------------ */
+/* Refs */
 const isSidebarOpen = ref(false)
 const searchQuery = ref('')
 
@@ -369,14 +362,16 @@ const editOpen = ref(false)
 const editId = ref<number | null>(null)
 const editSaving = ref(false)
 
-/* ----------------------------- Lifecycle ---------------------------- */
-onMounted(() => {
-  markerStore.loadMarkers().catch(console.error)
-})
+/* Stores */
+const router = useRouter()
+const markerStore = useMarkerStore()
+const tripStore = useTripStore()
 
-/* ----------------------------- Computed ----------------------------- */
+const { markers, isLoading, isSaving } = storeToRefs(markerStore)
+
+/* Computeds */
 const uiMarkers = computed(() => {
-  return markers.value.map(m => {
+  return markers.value.map((m) => {
     const cid = (m.categoryId as CategoryId | null) ?? null
     return {
       ...m,
@@ -392,29 +387,34 @@ const filteredMarkers = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return uiMarkers.value
 
-  return uiMarkers.value.filter(m =>
-    (m.title ?? '').toLowerCase().includes(q) ||
-    (m.description ?? '').toLowerCase().includes(q) ||
-    (m.categoryLabel ?? '').toLowerCase().includes(q)
+  return uiMarkers.value.filter(
+    (m: any) =>
+      (m.title ?? '').toLowerCase().includes(q) ||
+      (m.description ?? '').toLowerCase().includes(q) ||
+      (m.categoryLabel ?? '').toLowerCase().includes(q)
   )
 })
 
 const activeDetail = computed(() => {
   if (detailId.value == null) return null
-  return uiMarkers.value.find(m => String(m.id) === String(detailId.value)) ?? null
+  return uiMarkers.value.find((m: any) => String(m.id) === String(detailId.value)) ?? null
 })
 
 const activeMarker = computed(() => {
   if (editId.value == null) return null
-  return uiMarkers.value.find(m => Number(m.id) === Number(editId.value)) ?? null
+  return uiMarkers.value.find((m: any) => Number(m.id) === Number(editId.value)) ?? null
 })
 
-/* ----------------------------- Navigation ---------------------------- */
+/* Init */
+onMounted(() => {
+  markerStore.loadMarkers().catch(() => {})
+})
+
+/* UI Handlers */
 function goDashboard() {
   router.push('/').catch(() => {})
 }
 
-/* --------------------------- Detail / Edit -------------------------- */
 function openDetail(id: string | number) {
   detailId.value = id
   detailOpen.value = true
@@ -436,21 +436,18 @@ async function handleDelete(id: number) {
     await markerStore.deleteMarker(id)
     detailOpen.value = false
     detailId.value = null
-  } catch (e) {
-    console.error('[MarkersView] delete failed', e)
-  }
+  } catch {}
 }
 
-/* ----------------------------- GeoSearch ---------------------------- */
-// Nur ins Feld übernehmen – kurz & clean
+/* Pure Helpers */
 function primaryLabel(name: string) {
   const parts = name
     .split(/[,\u2013\u2014\-|·]+/g)
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean)
 
   const seen = new Set<string>()
-  const uniq = parts.filter(p => {
+  const uniq = parts.filter((p) => {
     const k = p.toLowerCase()
     if (seen.has(k)) return false
     seen.add(k)
@@ -472,134 +469,6 @@ function searchFillOnly(payload: {
   searchQuery.value = payload.query
 }
 
-/* ------------------------------ Create ------------------------------ */
-type CreateSubmitPayload = { marker: NewMarker; tripId: number | null }
-
-async function saveMarker({ marker, tripId }: CreateSubmitPayload) {
-  try {
-    const title = (marker.title ?? '').trim()
-    const lat = Number(marker.lat)
-    const lng = Number(marker.lng)
-
-    if (!title || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      console.warn('[MarkersView] invalid marker payload before POST', { marker, title, lat, lng })
-      return
-    }
-
-    const withPlace: NewMarker = { ...marker }
-    if (!withPlace.placeName || !withPlace.placeName.trim()) {
-      withPlace.placeName = await reversePlaceName(lat, lng)
-    }
-
-    // Backend erwartet startDate (nicht occurredAt)
-    const body = {
-      title,
-      description: withPlace.description ?? '',
-      categoryId: withPlace.categoryId ?? null,
-      startDate: withPlace.occurredAt, // ✅ mapping
-      lat,
-      lng,
-      visibility: (withPlace as any).visibility ?? 'PRIVATE',
-      placeName: withPlace.placeName ?? null,
-      images: (withPlace as any).images ?? [],
-    }
-
-    const created = await apiFetch('/markers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-
-    if (tripId != null) {
-      await tripStore.selectTrip(tripId)
-      await tripStore.addStop(created.id)
-      await tripStore.loadTrips()
-    }
-
-    await markerStore.loadMarkers()
-    detailId.value = created.id
-    detailOpen.value = true
-  } catch (e) {
-    console.error('[MarkersView] create failed', e)
-  } finally {
-    createOpen.value = false
-  }
-}
-
-/* ------------------------------- Edit ------------------------------ */
-async function onEditSubmit({ payload }: { payload: any; files: File[]; tripId: number | null }) {
-  if (!activeMarker.value?.id) return
-
-  editSaving.value = true
-  try {
-    const id = Number(activeMarker.value.id)
-
-    await updateMarker(id, payload)
-
-    // Visibility separat (falls dein Backend /markers/{id} sie nicht übernimmt)
-    if (payload.visibility) {
-      await apiFetch(`/markers/${id}/visibility`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visibility: payload.visibility }),
-      })
-    }
-
-    await markerStore.loadMarkers()
-    editOpen.value = false
-    editId.value = null
-  } finally {
-    editSaving.value = false
-  }
-}
-
-function updateMarker(id: number, payload: any) {
-  const body = {
-    title: payload.title,
-    description: payload.description ?? '',
-    categoryId: payload.categoryId ?? null,
-
-    // EditModal liefert occurredAt -> Backend braucht startDate
-    startDate: payload.occurredAt ?? payload.startDate ?? null,
-    lat: Number(payload.lat),
-    lng: Number(payload.lng),
-
-    visibility: payload.visibility ?? 'PRIVATE',
-    placeName: payload.placeName ?? null,
-
-    images: payload.images ?? [],
-    removedImageIds: payload.removedImageIds ?? [],
-  }
-
-  return apiFetch(`/markers/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-}
-
-/* ------------------------------- Share ------------------------------ */
-// optional: falls du shareLink unten noch nutzt
-async function generateShareLink() {
-  try {
-    const data = await apiFetch('/share', { method: 'POST' })
-    shareLink.value = `${window.location.origin}/shared/${data.code}`
-  } catch (e) {
-    console.error('[MarkersView] generate share link failed', e)
-  }
-}
-
-async function copyLink() {
-  if (!shareLink.value) return
-  try {
-    await navigator.clipboard.writeText(shareLink.value)
-    alert('Link kopiert!')
-  } catch (e) {
-    console.error('[MarkersView] copy failed', e)
-  }
-}
-
-/* ------------------------------ Utils ------------------------------ */
 function formatDate(isoYmd?: string | null) {
   if (!isoYmd) return '—'
   const [y, m, d] = isoYmd.split('-').map(Number)
@@ -646,6 +515,109 @@ function coverCardSrc(m: any): string | null {
 
 function markerLocation(m: any): string {
   return m.placeName || m.location || m.address || m.city || 'Ort unbekannt'
+}
+
+/* Final Actions */
+type CreateSubmitPayload = { marker: NewMarker; tripId: number | null }
+
+async function saveMarker({ marker, tripId }: CreateSubmitPayload) {
+  try {
+    const title = (marker.title ?? '').trim()
+    const lat = Number(marker.lat)
+    const lng = Number(marker.lng)
+
+    if (!title || !Number.isFinite(lat) || !Number.isFinite(lng)) return
+
+    const withPlace: NewMarker = { ...marker }
+    if (!withPlace.placeName || !withPlace.placeName.trim()) {
+      withPlace.placeName = await reversePlaceName(lat, lng)
+    }
+
+    const body = {
+      title,
+      description: withPlace.description ?? '',
+      categoryId: withPlace.categoryId ?? null,
+      startDate: withPlace.occurredAt,
+      lat,
+      lng,
+      visibility: (withPlace as any).visibility ?? 'PRIVATE',
+      placeName: withPlace.placeName ?? null,
+      images: (withPlace as any).images ?? [],
+    }
+
+    const created = await apiFetch('/markers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (tripId != null) {
+      await tripStore.selectTrip(tripId)
+      await tripStore.addStop(created.id)
+      await tripStore.loadTrips()
+    }
+
+    await markerStore.loadMarkers()
+    detailId.value = created.id
+    detailOpen.value = true
+  } catch {
+  } finally {
+    createOpen.value = false
+  }
+}
+
+async function onEditSubmit({ payload }: { payload: any; files: File[]; tripId: number | null }) {
+  if (!activeMarker.value?.id) return
+
+  editSaving.value = true
+  try {
+    const id = Number((activeMarker.value as any).id)
+
+    await updateMarker(id, payload)
+
+    if (payload.visibility) {
+      await apiFetch(`/markers/${id}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility: payload.visibility }),
+      })
+    }
+
+    await markerStore.loadMarkers()
+    editOpen.value = false
+    editId.value = null
+  } finally {
+    editSaving.value = false
+  }
+}
+
+function updateMarker(id: number, payload: any) {
+  const body = {
+    title: payload.title,
+    description: payload.description ?? '',
+    categoryId: payload.categoryId ?? null,
+    startDate: payload.occurredAt ?? payload.startDate ?? null,
+    lat: Number(payload.lat),
+    lng: Number(payload.lng),
+    visibility: payload.visibility ?? 'PRIVATE',
+    placeName: payload.placeName ?? null,
+    images: payload.images ?? [],
+    removedImageIds: payload.removedImageIds ?? [],
+  }
+
+  return apiFetch(`/markers/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+async function copyLink() {
+  if (!shareLink.value) return
+  try {
+    await navigator.clipboard.writeText(shareLink.value)
+    alert('Link kopiert!')
+  } catch {}
 }
 </script>
 <style scoped>

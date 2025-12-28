@@ -184,10 +184,11 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import AppButton from '@/components/AppButton.vue'
 import { apiFetch } from '@/lib/api'
 
+/* Props */
 const props = withDefaults(defineProps<{
   modelValue: boolean
   endpoint?: string
@@ -201,18 +202,30 @@ const props = withDefaults(defineProps<{
   autoGenerate: true,
 })
 
+/* Emits */
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
   (e: 'generated', link: string): void
 }>()
 
-const open = computed(() => props.modelValue)
-
+/* State */
 const shareLink = ref<string | null>(null)
+const shareCode = ref<string | null>(null)
+
 const loading = ref(false)
+const revoking = ref(false)
+const rotating = ref(false)
+
 const error = ref<string | null>(null)
 const copied = ref(false)
+const revoked = ref(false)
 
+const shellRef = ref<HTMLElement | null>(null)
+
+/* Computeds */
+const open = computed(() => props.modelValue)
+
+/* UI Actions */
 function close() {
   emit('update:modelValue', false)
 }
@@ -221,6 +234,10 @@ function onBackdrop() {
   if (props.closeOnBackdrop) close()
 }
 
+function openLink() {
+  if (!shareLink.value) return
+  window.open(shareLink.value, '_blank', 'noopener,noreferrer')
+}
 
 async function copyLink() {
   if (!shareLink.value) return
@@ -228,52 +245,15 @@ async function copyLink() {
     await navigator.clipboard.writeText(shareLink.value)
     copied.value = true
     setTimeout(() => (copied.value = false), 1600)
-  } catch (e) {
-    console.error(e)
-  }
+  } catch (e) {}
 }
 
-watch(
-  () => open.value,
-  (isOpen) => {
-    if (!isOpen) return
-    if (props.autoGenerate && !shareLink.value && !loading.value) generate()
-  }
-)
-
-function openLink() {
-  if (!shareLink.value) return
-  window.open(shareLink.value, '_blank', 'noopener,noreferrer')
-}
-
-
-const shareCode = ref<string | null>(null)
-const revoking = ref(false)
-const rotating = ref(false)
-
-
-async function rotateLink() {
-  // rotate = revoke + neu generieren
-  if (!shareCode.value) {
-    await generate()
-    return
-  }
-  rotating.value = true
-  try {
-    await revokeLink()
-    await generate()
-  } finally {
-    rotating.value = false
-  }
-}
-
-const revoked = ref(false)
-
+/* API Actions */
 async function generate() {
   loading.value = true
   error.value = null
   copied.value = false
-  revoked.value = false // <- reset
+  revoked.value = false
 
   try {
     const data = await apiFetch(props.endpoint, { method: 'POST' })
@@ -284,7 +264,6 @@ async function generate() {
     shareLink.value = `${window.location.origin}${props.sharedPathPrefix}${encodeURIComponent(code)}`
     emit('generated', shareLink.value)
   } catch (e: any) {
-    console.error(e)
     error.value = e?.message ?? 'Konnte Share-Link nicht erstellen.'
     shareLink.value = null
   } finally {
@@ -296,31 +275,52 @@ async function revokeLink() {
   if (!shareCode.value) return
   revoking.value = true
   error.value = null
+
   try {
     await apiFetch(`${props.endpoint}/${encodeURIComponent(shareCode.value)}`, { method: 'DELETE' })
     shareLink.value = null
     shareCode.value = null
-    revoked.value = true // <- merken, dass er gerade zurückgezogen wurde
+    revoked.value = true
   } catch (e: any) {
-    console.error(e)
     error.value = e?.message ?? 'Konnte Share-Link nicht zurückziehen.'
   } finally {
     revoking.value = false
   }
 }
 
-const shellRef = ref<HTMLElement | null>(null)
+async function rotateLink() {
+  if (!shareCode.value) {
+    await generate()
+    return
+  }
+
+  rotating.value = true
+  try {
+    await revokeLink()
+    await generate()
+  } finally {
+    rotating.value = false
+  }
+}
+
+/* Watchers */
+watch(
+  () => open.value,
+  (isOpen) => {
+    if (!isOpen) return
+    if (props.autoGenerate && !shareLink.value && !loading.value) generate()
+  }
+)
 
 watch(
   () => open.value,
   async (isOpen) => {
     if (!isOpen) return
     await nextTick()
-    shellRef.value?.focus()     // <- das macht ESC zuverlässig
+    shellRef.value?.focus()
     if (props.autoGenerate && !shareLink.value && !loading.value) generate()
   }
 )
-
 </script>
 
 <style scoped>

@@ -1,18 +1,17 @@
-// src/lib/cloudinaryDelivery.ts
 import type { ImageAsset } from '@/types/ImageAsset'
 
+/* Konstanten */
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
 
+/* Pure Helpers */
 function stripExtAny(publicId: string) {
   return publicId.replace(/\.(jpg|jpeg|png|webp|gif|avif|mp4|mov|webm|mkv|m4v)$/i, '')
 }
 
 function inferMediaType(a: ImageAsset): 'IMAGE' | 'VIDEO' {
-  // wenn backend es liefert: perfekt
   const mt = (a as any)?.mediaType
   if (mt === 'VIDEO' || mt === 'IMAGE') return mt
 
-  // fallback: über Format / Extension
   const pid = (a.publicId ?? '').toLowerCase()
   const fmt = String((a as any)?.format ?? '').toLowerCase()
 
@@ -31,6 +30,7 @@ function inferMediaType(a: ImageAsset): 'IMAGE' | 'VIDEO' {
   return isVideo ? 'VIDEO' : 'IMAGE'
 }
 
+/* Delivery */
 export function cldMediaUrl(asset: ImageAsset, transforms = 'f_auto,q_auto') {
   if (!asset?.publicId) return ''
   if (!CLOUD_NAME) return ''
@@ -43,11 +43,7 @@ export function cldMediaUrl(asset: ImageAsset, transforms = 'f_auto,q_auto') {
   return `https://res.cloudinary.com/${CLOUD_NAME}/${rt}/upload/${t}${pid}`
 }
 
-/**
- * Card/Thumb URL (für Grid/Carousel/Preview)
- * - Videos: kleines Video (kein Poster-Frame)
- * - Images: resized Image
- */
+/* Thumb */
 export const cldThumb = (asset: ImageAsset) => {
   const mt = inferMediaType(asset)
   return mt === 'VIDEO'
@@ -55,17 +51,10 @@ export const cldThumb = (asset: ImageAsset) => {
     : cldMediaUrl(asset, 'f_auto,q_auto,w_420')
 }
 
-/**
- * Alias, damit alter Code (markerImages.ts) nicht crasht:
- * markerImages.ts importiert aktuell "cldCard"
- */
+/* Aliases */
 export const cldCard = cldThumb
 
-/**
- * Full URL (für Hero/Detailansicht)
- * - Videos: Original als Video delivery
- * - Images: Original als Image delivery
- */
+/* Full */
 export const cldFull = (asset: ImageAsset) => {
   const mt = inferMediaType(asset)
   return mt === 'VIDEO'
@@ -74,6 +63,4 @@ export const cldFull = (asset: ImageAsset) => {
 }
 
 export const isVideoAsset = (asset: ImageAsset) => inferMediaType(asset) === 'VIDEO'
-
-// optional: falls du es woanders brauchst
 export const inferAssetMediaType = inferMediaType

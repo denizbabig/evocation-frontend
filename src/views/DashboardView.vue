@@ -352,22 +352,18 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import gemini2 from '@/assets/gemini2.png'
 import { apiFetch } from '@/lib/api'
-import { useTripStore } from '@/stores/TripStore'
-import { useMarkerStore } from '@/stores/MarkerStore'
 import { markerCover } from '@/lib/markerImages'
+import { useMarkerStore } from '@/stores/MarkerStore'
+import { useTripStore } from '@/stores/TripStore'
 
-defineOptions({ name: 'DashboardHomeView' })
-
-const router = useRouter()
-const isSidebarOpen = ref(false)
-
-/** Dummy Stats (nur das bleibt “dumm”) */
+/* Types */
 type DashboardStats = {
   markerCount?: number
   markersThisYear?: number
@@ -375,29 +371,29 @@ type DashboardStats = {
   favoriteCountry?: string
 }
 
-const statsLoading = ref(false)
-const statsError = ref<string | null>(null)
+/* Constants */
+defineOptions({ name: 'DashboardHomeView' })
+
+/* Refs */
+const router = useRouter()
+const isSidebarOpen = ref(false)
+
 const apiStats = ref<DashboardStats | null>(null)
+const statsError = ref<string | null>(null)
+const statsLoading = ref(false)
 
-function thisYearFromMarker(m: any) {
-  const d = m?.occurredAt ?? m?.startDate ?? null
-  if (!d) return false
-  const y = Number(String(d).slice(0, 4))
-  return y === new Date().getFullYear()
-}
+/* Stores */
+const tripStore = useTripStore()
+const markerStore = useMarkerStore()
 
-function formatKm(v?: number | null) {
-  if (v == null || !Number.isFinite(v)) return '—'
-  // nice dashboard style: keine Nachkommastellen
-  return `${Math.round(v).toLocaleString('de-DE')} km`
-}
+const { trips, isLoading: tripIsLoading } = storeToRefs(tripStore)
+const { markers, isLoading: markerIsLoading } = storeToRefs(markerStore)
 
+/* Computeds */
 const markerCountFallback = computed(() => (markers.value ?? []).length)
-const markersThisYearFallback = computed(
-  () => (markers.value ?? []).filter(thisYearFromMarker).length
-)
 
-/** 4 Stats: Marker, Distanz, Dieses Jahr, Lieblingsland */
+const markersThisYearFallback = computed(() => (markers.value ?? []).filter(thisYearFromMarker).length)
+
 const statCards = computed(() => {
   const markerCount = apiStats.value?.markerCount ?? markerCountFallback.value
   const markersThisYear = apiStats.value?.markersThisYear ?? markersThisYearFallback.value
@@ -406,7 +402,9 @@ const statCards = computed(() => {
     apiStats.value?.totalDistanceKm != null ? formatKm(apiStats.value.totalDistanceKm) : '—'
 
   const favorite =
-    (apiStats.value?.favoriteCountry && apiStats.value.favoriteCountry.trim()) ? apiStats.value.favoriteCountry : '—'
+    apiStats.value?.favoriteCountry && apiStats.value.favoriteCountry.trim()
+      ? apiStats.value.favoriteCountry
+      : '—'
 
   return [
     { label: 'Marker', value: String(markerCount ?? 0), hint: 'Anzahl deiner Marker', icon: '📍' },
@@ -416,52 +414,12 @@ const statCards = computed(() => {
   ]
 })
 
-/** Stores */
-const tripStore = useTripStore()
-const markerStore = useMarkerStore()
-
-const { trips, isLoading: tripIsLoading } = storeToRefs(tripStore)
-const { markers, isLoading: markerIsLoading } = storeToRefs(markerStore)
-
-onMounted(async () => {
-  try {
-    // Trips + Marker “echt” laden
-    if (!trips.value.length) await tripStore.loadTrips()
-    if (!markers.value.length) await markerStore.loadMarkers()
-
-    // Stats (Backend) – fällt automatisch auf Store-Fallback zurück, wenn es nicht klappt
-    statsLoading.value = true
-    statsError.value = null
-    try {
-      const data = await apiFetch('/dashboard')
-      apiStats.value = data?.stats ?? null
-    } catch (e: any) {
-      statsError.value = e?.message ?? 'Failed to load dashboard stats'
-      apiStats.value = null
-    } finally {
-      statsLoading.value = false
-    }
-
-  } catch (e) {
-    console.error('[Dashboard] load failed', e)
-  }
-})
-
-/** Sort helper (desc) */
-function ts(v?: string | null) {
-  if (!v) return 0
-  const t = Date.parse(String(v))
-  return Number.isFinite(t) ? t : 0
-}
-
-/** 5 letzte Trips (prefer createdAt; fallback id) */
 const recentTrips = computed(() => {
   return [...(trips.value ?? [])]
     .sort((a: any, b: any) => ts(b.createdAt) - ts(a.createdAt) || Number(b.id) - Number(a.id))
     .slice(0, 5)
 })
 
-/** 5 letzte Marker (prefer occurredAt/startDate; fallback createdAt/id) */
 const recentMarkers = computed(() => {
   return [...(markers.value ?? [])]
     .sort((a: any, b: any) => {
@@ -472,8 +430,23 @@ const recentMarkers = computed(() => {
     .slice(0, 5)
 })
 
-function openTrip(id: number) {
-  router.push(`/trips/${id}`)
+/* Pure Helpers */
+function thisYearFromMarker(m: any) {
+  const d = m?.occurredAt ?? m?.startDate ?? null
+  if (!d) return false
+  const y = Number(String(d).slice(0, 4))
+  return y === new Date().getFullYear()
+}
+
+function formatKm(v?: number | null) {
+  if (v == null || !Number.isFinite(v)) return '—'
+  return `${Math.round(v).toLocaleString('de-DE')} km`
+}
+
+function ts(v?: string | null) {
+  if (!v) return 0
+  const t = Date.parse(String(v))
+  return Number.isFinite(t) ? t : 0
 }
 
 function formatDate(s?: string | null) {
@@ -522,6 +495,33 @@ function daysAgoLabel(isoYmd?: string | null) {
   if (diffDays <= 0) return 'Heute'
   if (diffDays === 1) return 'vor 1 Tag'
   return `vor ${diffDays} Tagen`
+}
+
+/* Init */
+onMounted(async () => {
+  try {
+    if (!trips.value.length) await tripStore.loadTrips()
+    if (!markers.value.length) await markerStore.loadMarkers()
+
+    statsLoading.value = true
+    statsError.value = null
+    try {
+      const data = await apiFetch('/dashboard')
+      apiStats.value = data?.stats ?? null
+    } catch (e: any) {
+      statsError.value = e?.message ?? 'Failed to load dashboard stats'
+      apiStats.value = null
+    } finally {
+      statsLoading.value = false
+    }
+  } catch {
+    /* noop */
+  }
+})
+
+/* UI Handlers */
+function openTrip(id: number) {
+  router.push(`/trips/${id}`)
 }
 </script>
 

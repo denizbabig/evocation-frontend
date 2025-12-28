@@ -261,29 +261,62 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+
 import AppButton from '@/components/AppButton.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
-import gemini2 from '@/assets/gemini2.png'
-import { useTripStore } from '@/stores/TripStore'
-import TripCreateModal from '@/components/TripCreateModal.vue'
 import ShareLinkModal from '@/components/ShareModal.vue'
+import TripCreateModal from '@/components/TripCreateModal.vue'
+
+import gemini2 from '@/assets/gemini2.png'
+
+import { useTripStore } from '@/stores/TripStore'
 
 defineOptions({ name: 'TripsView' })
 
 const router = useRouter()
-const isSidebarOpen = ref(false)
-
 const tripStore = useTripStore()
 const { trips, activeTripId, stops, isLoading } = storeToRefs(tripStore)
+
+const isSidebarOpen = ref(false)
 
 const error = ref<string | null>(null)
 const q = ref('')
 
 const markerCountByTripId = ref<Record<number, number>>({})
 const countsLoading = ref(false)
+
 const shareModalOpen = ref(false)
+
+const createOpen = ref(false)
+
+const filteredTrips = computed(() => {
+  const s = q.value.trim().toLowerCase()
+  const list = trips.value ?? []
+  if (!s) return list
+  return list.filter((t: any) => (t.title ?? '').toString().toLowerCase().includes(s))
+})
+
+const totalStops = computed(() => {
+  const list = trips.value ?? []
+  if (!list.length) return 0
+
+  const map = markerCountByTripId.value
+  let sum = 0
+
+  for (const t of list as any[]) {
+    const id = tripIdNum(t)
+    const v = map[id]
+    if (v !== undefined) sum += v
+    else {
+      const raw = t?.stopCount ?? t?.markerCount ?? null
+      if (typeof raw === 'number' && Number.isFinite(raw)) sum += raw
+    }
+  }
+
+  return sum
+})
 
 function tripIdNum(t: any): number {
   return Number(t?.id)
@@ -309,37 +342,12 @@ function markerCountLabel(t: any): string {
   return countsLoading.value ? '…' : '0'
 }
 
-const filteredTrips = computed(() => {
-  const s = q.value.trim().toLowerCase()
-  const list = trips.value ?? []
-  if (!s) return list
-  return list.filter((t: any) => (t.title ?? '').toString().toLowerCase().includes(s))
-})
-
-const totalStops = computed(() => {
-  const list = trips.value ?? []
-  if (!list.length) return 0
-  const map = markerCountByTripId.value
-  let sum = 0
-  for (const t of list as any[]) {
-    const id = tripIdNum(t)
-    const v = map[id]
-    if (v !== undefined) sum += v
-    else {
-      const raw = t?.stopCount ?? t?.markerCount ?? null
-      if (typeof raw === 'number' && Number.isFinite(raw)) sum += raw
-    }
-  }
-  return sum
-})
-
 async function reload() {
   error.value = null
   try {
     await tripStore.loadTrips()
     await hydrateCounts()
   } catch (e: any) {
-    console.error(e)
     error.value = e?.message ?? 'Konnte Trips nicht laden.'
   }
 }
@@ -355,6 +363,7 @@ async function hydrateCounts() {
     const raw = t?.stopCount ?? t?.markerCount ?? null
     return typeof raw === 'number' && Number.isFinite(raw)
   })
+
   if (allHaveCounts) {
     const next: Record<number, number> = {}
     for (const t of list) next[tripIdNum(t)] = Number(t.stopCount ?? t.markerCount ?? 0)
@@ -382,8 +391,8 @@ async function hydrateCounts() {
 
         const len = Array.isArray(stops.value) ? stops.value.length : 0
         next[id] = len
-      } catch (e) {
-        console.warn('[TripsView] could not hydrate stop count for trip', id, e)
+      } catch {
+
       }
     }
   } finally {
@@ -397,20 +406,24 @@ async function hydrateCounts() {
         if (typeof maybeLoadStops === 'function') {
           await maybeLoadStops.call(tripStore, prevActive)
         }
-      } catch {}
+      } catch {
+
+      }
     }
   }
 }
-
-onMounted(reload)
 
 function goDashboard() {
   router.push('/dashboard')
 }
 
-const createOpen = ref(false)
-function openCreate() { createOpen.value = true }
-function closeCreate() { createOpen.value = false }
+function openCreate() {
+  createOpen.value = true
+}
+
+function closeCreate() {
+  createOpen.value = false
+}
 
 function openDetail(id: number) {
   router.push(`/trips/${id}`)
@@ -419,11 +432,12 @@ function openDetail(id: number) {
 async function openInMap(id: number) {
   try {
     await tripStore.selectTrip(id)
-  } catch (e) {
-    console.error(e)
+  } catch {
   }
   router.push('/mapview')
 }
+
+onMounted(reload)
 </script>
 
 <style scoped>

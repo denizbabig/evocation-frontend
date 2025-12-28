@@ -316,11 +316,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
 import AppButton from '@/components/AppButton.vue'
 import AddSavedLinkModal from '@/components/AddSavedLinkModal.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
+
 import gemini2 from '@/assets/gemini2.png'
-import { listSavedShareLinks, updateSavedShareLinkLabel, deleteSavedShareLink, type SavedShareLinkDTO } from '@/lib/api'
+
+import { deleteSavedShareLink, listSavedShareLinks, updateSavedShareLinkLabel } from '@/lib/api'
+import type { SavedShareLinkDTO } from '@/lib/api'
+
+const router = useRouter()
 
 const isSidebarOpen = ref(false)
 
@@ -341,11 +348,13 @@ const addOpen = ref(false)
 const filtered = computed(() => {
   const s = q.value.trim().toLowerCase()
   if (!s) return items.value
-  return items.value.filter(i =>
-    (i.label ?? '').toLowerCase().includes(s) ||
-    (i.code ?? '').toLowerCase().includes(s)
-  )
+  return items.value.filter(i => (i.label ?? '').toLowerCase().includes(s) || (i.code ?? '').toLowerCase().includes(s))
 })
+
+/* BUGFIX: goDashboard is used in template but was missing (runtime error on click) */
+function goDashboard() {
+  router.push('/dashboard')
+}
 
 async function reload() {
   loading.value = true
@@ -354,7 +363,6 @@ async function reload() {
     const data = await listSavedShareLinks()
     items.value = Array.isArray(data) ? data : []
   } catch (e: any) {
-    console.error(e)
     error.value = e?.message ?? 'Konnte gespeicherte Links nicht laden.'
   } finally {
     loading.value = false
@@ -379,8 +387,8 @@ async function copy(item: SavedLink) {
     await navigator.clipboard.writeText(buildSharedUrl(item.code))
     copiedId.value = item.id
     setTimeout(() => (copiedId.value = null), 1200)
-  } catch (e) {
-    console.error(e)
+  } catch {
+    /* noop */
   }
 }
 
@@ -404,7 +412,6 @@ async function saveEdit(item: SavedLink) {
     item.label = updated.label ?? editName.value.trim()
     cancelEdit()
   } catch (e: any) {
-    console.error(e)
     error.value = e?.message ?? 'Konnte Name nicht speichern.'
   }
 }
@@ -414,7 +421,6 @@ async function remove(item: SavedLink) {
     await deleteSavedShareLink(item.id)
     items.value = items.value.filter(x => x.id !== item.id)
   } catch (e: any) {
-    console.error(e)
     error.value = e?.message ?? 'Konnte Link nicht löschen.'
   }
 }

@@ -96,7 +96,6 @@
             </svg>
           </AppButton>
         </div>
-
       </div>
     </main>
   </div>

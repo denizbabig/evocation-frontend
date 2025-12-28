@@ -1,9 +1,10 @@
-// src/stores/ShareStore.ts
+/* Imports */
 import { defineStore } from 'pinia'
-import type { Marker, CategoryNumeric } from '@/types/Marker'
-import type { SharedMapDTO, SharedTrip } from '@/types/Share'
+import type { CategoryNumeric, Marker } from '@/types/Marker'
+import type { SharedTrip } from '@/types/Share'
 import { fetchSharedMapPublic, PublicHttpError } from '@/lib/shareApi'
 
+/* Konstanten */
 const CategoryMapEnumToNum: Record<string, CategoryNumeric> = {
   TRAVEL: 1,
   FOOD: 2,
@@ -11,16 +12,12 @@ const CategoryMapEnumToNum: Record<string, CategoryNumeric> = {
   SHOPPING: 4,
 }
 
+/* Pure Helpers */
 function normalizeSharedMarker(m: any): Marker {
   const catStr: string | null = m?.category ?? null
   const catNum = catStr ? (CategoryMapEnumToNum[catStr] ?? null) : null
 
-  const images =
-    m?.images ??
-    m?.imageAssets ??
-    m?.markerImages ??
-    m?.marker_images ??
-    []
+  const images = m?.images ?? m?.imageAssets ?? m?.markerImages ?? m?.marker_images ?? []
 
   return {
     id: Number(m.id),
@@ -59,7 +56,9 @@ function normalizeSharedTrip(t: any): SharedTrip {
   }
 }
 
+/* Store */
 export const useShareStore = defineStore('share', {
+  /* State */
   state: () => ({
     code: null as string | null,
 
@@ -71,12 +70,14 @@ export const useShareStore = defineStore('share', {
     lastLoadedAt: null as number | null,
   }),
 
+  /* Getters */
   getters: {
     hasData(state) {
       return state.markers.length > 0 || state.trips.length > 0
     },
   },
 
+  /* Actions */
   actions: {
     clear() {
       this.code = null
@@ -111,8 +112,6 @@ export const useShareStore = defineStore('share', {
 
         this.lastLoadedAt = Date.now()
       } catch (e: any) {
-        console.error('[ShareStore] loadShared failed:', e)
-
         if (e instanceof PublicHttpError) {
           if (e.status === 404) {
             this.error = 'Dieser Share-Link existiert nicht (mehr) oder wurde revoked.'

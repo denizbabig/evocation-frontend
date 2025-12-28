@@ -1,4 +1,3 @@
-// src/types/Marker.ts
 import type { ImageAsset } from './ImageAsset'
 import type {CategoryId} from "@/types/CategoryId.ts";
 export type CategoryNumeric = 1 | 2 | 3 | 4

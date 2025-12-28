@@ -63,7 +63,7 @@ export async function preprocessImageForUpload(
       ? replaceExt(file.name, '.webp')
       : replaceExt(file.name, '.jpg')
 
-      console.log('[preprocess] in', file.type, file.size, file.name)
-console.log('[preprocess] out', mimeType, blob.size, newName, { targetW, targetH, scale })
+  console.log('[preprocess] in', file.type, file.size, file.name)
+  console.log('[preprocess] out', mimeType, blob.size, newName, { targetW, targetH, scale })
   return new File([blob], newName, { type: mimeType, lastModified: Date.now() })
 }

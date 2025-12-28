@@ -218,96 +218,155 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+/* Imports */
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-
 import {
-  Bars3Icon,
-  MagnifyingGlassPlusIcon,
-  MagnifyingGlassMinusIcon,
-  MapPinIcon,
   ArrowPathIcon,
+  Bars3Icon,
+  LinkIcon,
+  MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon,
+  MapPinIcon,
 } from '@heroicons/vue/24/outline'
 
-import MapLoad from '@/components/MapLoad.vue'
+import CreateTripModal from '@/components/CreateTripModal.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
-import gemini2 from '@/assets/gemini2.png'
+import MapLoad from '@/components/MapLoad.vue'
+import MarkerCreateModal from '@/components/MarkerCreateModal.vue'
+import MarkerEditModal from '@/components/MarkerEditModal.vue'
+import MarkerStoryModal from '@/components/MarkerStoryModal.vue'
+import ShareLinkModal from '@/components/ShareModal.vue'
+import TripSwitcher from '@/components/TripSwitcher.vue'
 
-import { useMarkerStore } from '@/stores/MarkerStore'
-import type { NewMarker } from '@/types/Marker'
+import gemini2 from '@/assets/gemini2.png'
 import { apiFetch } from '@/lib/api'
 import { reversePlaceName } from '@/lib/reverseGeocode'
-import MarkerStoryModal from '@/components/MarkerStoryModal.vue'
 import { updateMarkerJson } from '@/lib/markerApi.ts'
-import MarkerEditModal from '@/components/MarkerEditModal.vue'
+import { useMarkerStore } from '@/stores/MarkerStore'
 import { useTripStore } from '@/stores/TripStore'
-import TripSwitcher from '@/components/TripSwitcher.vue'
-import CreateTripModal from '@/components/CreateTripModal.vue'
-import MarkerCreateModal from '@/components/MarkerCreateModal.vue'
-import { LinkIcon } from '@heroicons/vue/24/outline'
-import ShareLinkModal from '@/components/ShareModal.vue'
+import type { CategoryId } from '@/types/CategoryId'
+import type { NewMarker } from '@/types/Marker'
 
+/* Constants */
 defineOptions({ name: 'MapViewPage' })
 
-const tripStore = useTripStore()
-const { activeTripId, activeStopsSorted } = storeToRefs(tripStore)
+const categoryOptions: { id: CategoryId; label: string }[] = [
+  { id: 'TRAVEL', label: 'Reise' },
+  { id: 'FOOD', label: 'Essen' },
+  { id: 'CULTURE', label: 'Sightseeing / Kultur' },
+  { id: 'SHOPPING', label: 'Shopping' },
+  { id: 'NATURE', label: 'Natur' },
+  { id: 'ADVENTURE', label: 'Abenteuer' },
+  { id: 'SPORT', label: 'Sport' },
+]
 
+const MIN_DETAIL_ZOOM = 6.5
+
+/* Refs */
 const router = useRouter()
 const route = useRoute()
 
-const markerStore = useMarkerStore()
-const { markers, isSaving, draft } = storeToRefs(markerStore)
-const shareModalOpen = ref(false)
-const detailId = ref<string | number | null>(null)
-
-const activeDetail = computed(() => {
-  if (detailId.value == null) return null
-  return markers.value.find(m => String(m.id) === String(detailId.value)) ?? null
-})
-
 const isSidebarOpen = ref(false)
 const searchQuery = ref('')
-const detailOpen = ref(false)
+const clusterOn = ref(false)
+const shareModalOpen = ref(false)
 
 const mapRef = ref<InstanceType<typeof MapLoad> | null>(null)
 
-import type { CategoryId } from '@/types/CategoryId'
+const detailOpen = ref(false)
+const detailId = ref<string | number | null>(null)
 
-const categoryOptions: { id: CategoryId; label: string }[] = [
-  { id: 'TRAVEL',    label: 'Reise' },
-  { id: 'FOOD',      label: 'Essen' },
-  { id: 'CULTURE',   label: 'Sightseeing / Kultur' },
-  { id: 'SHOPPING',  label: 'Shopping' },
-  { id: 'NATURE',    label: 'Natur' },
-  { id: 'ADVENTURE', label: 'Abenteuer' },
-  { id: 'SPORT',     label: 'Sport' },
-]
+const editOpen = ref(false)
+const editId = ref<number | null>(null)
+const editSaving = ref(false)
 
-function goHome() {
-  router.push('/')
-}
+const tripFilterId = ref<number | null>(null)
 
-function onMapClick({ lat, lng }: { lat: number; lng: number }) {
-  markerStore.startDraftFromMap(lat, lng)
+const createTripOpen = ref(false)
+const createTripSaving = ref(false)
+
+const pendingOpenId = ref<number | null>(null)
+const assignedMarkerIdSet = ref<Set<number>>(new Set())
+
+/* Stores */
+const markerStore = useMarkerStore()
+const tripStore = useTripStore()
+
+const { markers, draft, isSaving } = storeToRefs(markerStore)
+const { activeTripId, activeStopsSorted } = storeToRefs(tripStore)
+
+/* Computeds */
+const trips = computed(() => tripStore.trips ?? [])
+
+const activeDetail = computed(() => {
+  if (detailId.value == null) return null
+  return markers.value.find((m) => String(m.id) === String(detailId.value)) ?? null
+})
+
+const activeMarker = computed(() => {
+  if (editId.value == null) return null
+  return markers.value.find((m) => Number(m.id) === Number(editId.value)) ?? null
+})
+
+const stopIdSet = computed(() => new Set(activeStopsSorted.value.map((s) => Number(s.markerId))))
+
+const visibleMarkers = computed(() => {
+  if (tripFilterId.value == null) return markers.value
+
+  const inActiveTrip = stopIdSet.value
+  if (inActiveTrip.size === 0) {
+    const assignedAnyTrip = assignedMarkerIdSet.value
+    return markers.value.filter((m) => !assignedAnyTrip.has(Number(m.id)))
+  }
+
+  return markers.value.filter((m) => inActiveTrip.has(Number(m.id)))
+})
+
+const routes = computed(() => {
+  if (tripFilterId.value == null) return []
+  const ids = activeStopsSorted.value.map((s) => Number(s.markerId))
+  const edges: Array<{ fromId: number; toId: number }> = []
+  for (let i = 0; i < ids.length - 1; i++) edges.push({ fromId: ids[i], toId: ids[i + 1] })
+  return edges
+})
+
+const activeTripLabel = computed(() => {
+  if (!tripFilterId.value) return 'Alle Marker'
+  const t = trips.value.find((x: any) => Number((x as any).id) === Number(tripFilterId.value))
+  return (t as any)?.title?.trim?.() ? (t as any).title : `Trip #${tripFilterId.value}`
+})
+
+/* Pure Helpers */
+function parseLatLng(s?: string): { lat: number; lng: number } | null {
+  if (!s) return null
+  const [a, b] = String(s).split(',')
+  const lat = Number(a)
+  const lng = Number(b)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { lat, lng }
 }
 
 function fitVisibleMarkers(padding = 96) {
   const list = visibleMarkers.value
   if (!list?.length) return
 
-  // 1 Marker => lieber flyTo als fitBounds
   if (list.length === 1) {
-    const m = list[0]
+    const m = list[0] as any
     mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 6.5)
     return
   }
 
-  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
-  for (const m of list) {
-    const lat = Number((m as any).lat)
-    const lng = Number((m as any).lng)
+  let west = Infinity,
+    south = Infinity,
+    east = -Infinity,
+    north = -Infinity
+
+  for (const m of list as any[]) {
+    const lat = Number(m.lat)
+    const lng = Number(m.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
     west = Math.min(west, lng)
     south = Math.min(south, lat)
@@ -319,72 +378,7 @@ function fitVisibleMarkers(padding = 96) {
   mapRef.value?.fitBounds?.(west, south, east, north, padding)
 }
 
-
-
-const onZoomIn = () => mapRef.value?.zoomIn()
-const onZoomOut = () => mapRef.value?.zoomOut()
-const onReset = () => mapRef.value?.resetView?.()
-
-const onLocate = () => {
-  if (!navigator.geolocation) return console.warn('Geolocation not supported')
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => mapRef.value?.flyTo(coords.latitude, coords.longitude, 13),
-    (err) => console.warn('Geolocation error:', err),
-    { enableHighAccuracy: true, timeout: 8000 }
-  )
-}
-
-function closeDraft() {
-  markerStore.clearDraft()
-}
-
-function handleOpenOnMap(id: number) {
-  const m = markers.value.find((x: any) => x.id === id)
-  if (m) mapRef.value?.flyTo(m.lat, m.lng, 13)
-}
-
-const editOpen = ref(false)
-const editId = ref<number | null>(null)
-
-const activeMarker = computed(() => {
-  if (editId.value == null) return null
-  return markers.value.find(m => Number(m.id) === Number(editId.value)) ?? null
-})
-
-function handleEdit(id: number) {
-  detailOpen.value = false
-  editId.value = id
-  editOpen.value = true
-}
-
-async function handleDelete(id: number) {
-  try {
-    await markerStore.deleteMarker(id)
-    detailOpen.value = false
-    detailId.value = null
-  } catch (e) {
-    console.error('Delete failed', e)
-  }
-}
-
-function onSuggestSelect(s: { lat: number; lon: number; display_name: string }) {
-  mapRef.value?.flyTo(s.lat, s.lon, 10)
-}
-
-function onSearchResults(payload: { query: string; results: Array<any>; best?: { lat: string; lon: string } }) {
-  const best = payload?.best
-  if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 10)
-}
-
-function parseLatLng(s?: string): { lat: number; lng: number } | null {
-  if (!s) return null
-  const [a, b] = String(s).split(',')
-  const lat = Number(a)
-  const lng = Number(b)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
-  return { lat, lng }
-}
-
+/* Init/Mapping */
 async function applyMapQuery() {
   const gotoStr = (route.query.goto as string | undefined) ?? (route.query.center as string | undefined)
   const zoomStr = (route.query.zoom as string | undefined) ?? (route.query.z as string | undefined)
@@ -397,99 +391,65 @@ async function applyMapQuery() {
   mapRef.value?.flyTo(pos.lat, pos.lng, Number.isFinite(z) ? z : 12)
 }
 
+/* Watcher */
 watch(
   () => [route.query.goto, route.query.center, route.query.zoom, route.query.z, route.query.new],
   () => applyMapQuery(),
   { immediate: false }
 )
 
-type CreateSubmitPayload = { marker: NewMarker; tripId: number | null }
+watch(tripFilterId, () => {
+  pendingOpenId.value = null
+})
 
-async function saveMarker({ marker, tripId }: CreateSubmitPayload) {
-  try {
-    const withPlace: NewMarker = { ...marker }
-
-    if (!withPlace.placeName || !withPlace.placeName.trim()) {
-      withPlace.placeName = await reversePlaceName(Number(withPlace.lat), Number(withPlace.lng))
-    }
-
-    const created = await markerStore.addMarker(withPlace)
-    await markerStore.loadMarkers()
-
-    if (tripId != null) {
-      await tripStore.selectTrip(tripId)
-      await tripStore.addStop(created.id)
-      await tripStore.loadTrips()
-      await refreshAssignedMarkerIds()
-    }
-
-    mapRef.value?.flyTo(created.lat, created.lng, 13)
-    detailId.value = created.id
-    detailOpen.value = true
-
-    closeDraft()
-  } catch (e) {
-    console.error(e)
-  }
+/* UI Handlers */
+function goHome() {
+  router.push('/')
 }
 
-const editSaving = ref(false)
-
-
-
-async function onEditSubmit(
-  { payload, files, tripId }:
-  { payload: any; files?: File[]; tripId: number | null } // ✅ files optional
-) {
-  if (!activeMarker.value?.id) return
-
-  console.log('[EDIT SUBMIT] payload.images:', payload?.images)
-
-  const markerId = Number(activeMarker.value.id)
-  editSaving.value = true
-
-  const prevTrip = Number(activeTripId.value ?? 0) || null
-
-  // ✅ safe default (immer ein Array)
-  const safeFiles: File[] = Array.isArray(files) ? files : []
-
-  try {
-    await updateMarkerJson(markerId, payload) // ✅ statt files
-    await markerStore.loadMarkers()
-
-    const fromTripId = await findTripIdForMarker(markerId)
-    const toTripId = tripId == null ? null : Number(tripId)
-    const same = (fromTripId ?? null) === (toTripId ?? null)
-
-    if (!same) {
-      if (fromTripId != null) {
-        await tripStore.selectTrip(fromTripId)
-        await tripStore.removeStop(markerId)
-      }
-      if (toTripId != null) {
-        await tripStore.selectTrip(toTripId)
-        await tripStore.addStop(markerId)
-      }
-
-      await tripStore.loadTrips()
-      if (tripStore.activeTripId) await tripStore.loadStops(tripStore.activeTripId)
-      await refreshAssignedMarkerIds()
-    }
-
-    if (prevTrip != null) await tripStore.selectTrip(prevTrip)
-
-    editOpen.value = false
-    editId.value = null
-  } finally {
-    editSaving.value = false
-  }
+function onMapClick({ lat, lng }: { lat: number; lng: number }) {
+  markerStore.startDraftFromMap(lat, lng)
 }
 
-const MIN_DETAIL_ZOOM = 6.5
-const pendingOpenId = ref<number | null>(null)
+function onSuggestSelect(s: { lat: number; lon: number; display_name: string }) {
+  mapRef.value?.flyTo(s.lat, s.lon, 10)
+}
+
+function onSearchResults(payload: { query: string; results: Array<any>; best?: { lat: string; lon: string } }) {
+  const best = payload?.best
+  if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 10)
+}
+
+const onZoomIn = () => mapRef.value?.zoomIn()
+const onZoomOut = () => mapRef.value?.zoomOut()
+const onReset = () => mapRef.value?.resetView?.()
+
+const onLocate = () => {
+  if (!navigator.geolocation) return
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => mapRef.value?.flyTo(coords.latitude, coords.longitude, 13),
+    () => {},
+    { enableHighAccuracy: true, timeout: 8000 }
+  )
+}
+
+function closeDraft() {
+  markerStore.clearDraft()
+}
+
+function handleOpenOnMap(id: number) {
+  const m: any = markers.value.find((x: any) => x.id === id)
+  if (m) mapRef.value?.flyTo(m.lat, m.lng, 13)
+}
+
+function openDetail(id: number) {
+  detailId.value = id
+  markerStore.setSelected(id)
+  detailOpen.value = true
+}
 
 async function onMarkerClick({ id }: { id: number }) {
-  const m = markers.value.find(x => Number(x.id) === Number(id))
+  const m: any = markers.value.find((x: any) => Number(x.id) === Number(id))
   if (!m) return
 
   const z = mapRef.value?.getZoom?.() ?? 0
@@ -502,12 +462,6 @@ async function onMarkerClick({ id }: { id: number }) {
   openDetail(id)
 }
 
-function openDetail(id: number) {
-  detailId.value = id
-  markerStore.setSelected(id)
-  detailOpen.value = true
-}
-
 function onMapMove(payload: { center: { lat: number; lng: number }; zoom: number }) {
   if (pendingOpenId.value != null && payload.zoom >= MIN_DETAIL_ZOOM) {
     const id = pendingOpenId.value
@@ -516,37 +470,19 @@ function onMapMove(payload: { center: { lat: number; lng: number }; zoom: number
   }
 }
 
-const routes = computed(() => {
-  if (tripFilterId.value == null) return []
-  const ids = activeStopsSorted.value.map(s => Number(s.markerId))
-  const edges: Array<{ fromId: number; toId: number }> = []
-  for (let i = 0; i < ids.length - 1; i++) edges.push({ fromId: ids[i], toId: ids[i + 1] })
-  return edges
-})
+function handleEdit(id: number) {
+  detailOpen.value = false
+  editId.value = id
+  editOpen.value = true
+}
 
-onMounted(async () => {
-  await Promise.all([
-    markerStore.loadMarkers().catch(console.error),
-    tripStore.loadTrips().catch(console.error),
-  ])
-
-  await refreshAssignedMarkerIds()
-
-  if (activeTripId.value && tripFilterId.value == null) {
-    tripFilterId.value = Number(activeTripId.value)
-    await tripStore.selectTrip(Number(activeTripId.value))
-    await nextTick()
-    fitVisibleMarkers()
-  }
-
-  await applyMapQuery()
-})
-
-const clusterOn = ref(false)
-
-const stopIdSet = computed(() => new Set(activeStopsSorted.value.map(s => Number(s.markerId))))
-const tripFilterId = ref<number | null>(null)
-const trips = computed(() => tripStore.trips ?? [])
+async function handleDelete(id: number) {
+  try {
+    await markerStore.deleteMarker(id)
+    detailOpen.value = false
+    detailId.value = null
+  } catch {}
+}
 
 async function chooseTrip(id: number | null) {
   tripFilterId.value = id
@@ -555,13 +491,19 @@ async function chooseTrip(id: number | null) {
     await tripStore.selectTrip(id)
   }
 
-  // wichtig: erst render/update abwarten, dann bounds berechnen
   await nextTick()
   fitVisibleMarkers()
 }
 
-const assignedMarkerIdSet = ref<Set<number>>(new Set())
+function openCreateTrip() {
+  createTripOpen.value = true
+}
 
+function closeCreateTrip() {
+  createTripOpen.value = false
+}
+
+/* Upload/Transform */
 async function refreshAssignedMarkerIds() {
   try {
     const all = new Set<number>()
@@ -592,54 +534,8 @@ async function refreshAssignedMarkerIds() {
       if (!id) continue
       t.stopCount = counts.get(id) ?? 0
     }
-  } catch (e) {
-    console.warn('refreshAssignedMarkerIds failed', e)
+  } catch {
     assignedMarkerIdSet.value = new Set()
-  }
-}
-
-const visibleMarkers = computed(() => {
-  if (tripFilterId.value == null) return markers.value
-
-  const inActiveTrip = stopIdSet.value
-  if (inActiveTrip.size === 0) {
-    const assignedAnyTrip = assignedMarkerIdSet.value
-    return markers.value.filter(m => !assignedAnyTrip.has(Number(m.id)))
-  }
-
-  return markers.value.filter(m => inActiveTrip.has(Number(m.id)))
-})
-
-watch(tripFilterId, () => (pendingOpenId.value = null))
-
-const createTripOpen = ref(false)
-const createTripSaving = ref(false)
-
-function openCreateTrip() {
-  createTripOpen.value = true
-}
-
-function closeCreateTrip() {
-  createTripOpen.value = false
-}
-
-async function submitCreateTrip(title: string) {
-  createTripSaving.value = true
-  try {
-    const created = await tripStore.createTrip(title)
-    await tripStore.loadTrips()
-
-    const newId = Number((created as any)?.id ?? tripStore.trips?.at(-1)?.id)
-    if (Number.isFinite(newId)) {
-      tripFilterId.value = newId
-      await tripStore.selectTrip(newId)
-    }
-
-    closeCreateTrip()
-  } catch (e: any) {
-    console.error(e)
-  } finally {
-    createTripSaving.value = false
   }
 }
 
@@ -658,10 +554,117 @@ async function findTripIdForMarker(markerId: number): Promise<number | null> {
   return null
 }
 
-const activeTripLabel = computed(() => {
-  if (!tripFilterId.value) return 'Alle Marker'
-  const t = trips.value.find(x => Number((x as any).id) === Number(tripFilterId.value))
-  return (t as any)?.title?.trim?.() ? (t as any).title : `Trip #${tripFilterId.value}`
+/* Final Actions */
+type CreateSubmitPayload = { marker: NewMarker; tripId: number | null }
+
+async function saveMarker({ marker, tripId }: CreateSubmitPayload) {
+  try {
+    const withPlace: NewMarker = { ...marker }
+
+    if (!withPlace.placeName || !withPlace.placeName.trim()) {
+      withPlace.placeName = await reversePlaceName(Number(withPlace.lat), Number(withPlace.lng))
+    }
+
+    const created = await markerStore.addMarker(withPlace)
+    await markerStore.loadMarkers()
+
+    if (tripId != null) {
+      await tripStore.selectTrip(tripId)
+      await tripStore.addStop(created.id)
+      await tripStore.loadTrips()
+      await refreshAssignedMarkerIds()
+    }
+
+    mapRef.value?.flyTo(created.lat, created.lng, 13)
+    detailId.value = created.id
+    detailOpen.value = true
+
+    closeDraft()
+  } catch {}
+}
+
+async function onEditSubmit({
+                              payload,
+                              files,
+                              tripId,
+                            }: {
+  payload: any
+  files?: File[]
+  tripId: number | null
+}) {
+  if (!activeMarker.value?.id) return
+
+  const markerId = Number(activeMarker.value.id)
+  editSaving.value = true
+
+  const prevTrip = Number(activeTripId.value ?? 0) || null
+  void files
+
+  try {
+    await updateMarkerJson(markerId, payload)
+    await markerStore.loadMarkers()
+
+    const fromTripId = await findTripIdForMarker(markerId)
+    const toTripId = tripId == null ? null : Number(tripId)
+    const same = (fromTripId ?? null) === (toTripId ?? null)
+
+    if (!same) {
+      if (fromTripId != null) {
+        await tripStore.selectTrip(fromTripId)
+        await tripStore.removeStop(markerId)
+      }
+      if (toTripId != null) {
+        await tripStore.selectTrip(toTripId)
+        await tripStore.addStop(markerId)
+      }
+
+      await tripStore.loadTrips()
+      if (tripStore.activeTripId) await tripStore.loadStops(tripStore.activeTripId)
+      await refreshAssignedMarkerIds()
+    }
+
+    if (prevTrip != null) await tripStore.selectTrip(prevTrip)
+
+    editOpen.value = false
+    editId.value = null
+  } finally {
+    editSaving.value = false
+  }
+}
+
+async function submitCreateTrip(title: string) {
+  createTripSaving.value = true
+  try {
+    const created = await tripStore.createTrip(title)
+    await tripStore.loadTrips()
+
+    const newId = Number((created as any)?.id ?? (tripStore.trips as any[])?.at(-1)?.id)
+    if (Number.isFinite(newId)) {
+      tripFilterId.value = newId
+      await tripStore.selectTrip(newId)
+    }
+
+    closeCreateTrip()
+  } catch {
+  } finally {
+    createTripSaving.value = false
+  }
+}
+
+/* Lifecycle */
+onMounted(async () => {
+  await Promise.all([markerStore.loadMarkers().catch(() => {}), tripStore.loadTrips().catch(() => {})])
+
+  await refreshAssignedMarkerIds()
+
+  if (activeTripId.value && tripFilterId.value == null) {
+    tripFilterId.value = Number(activeTripId.value)
+    await tripStore.selectTrip(Number(activeTripId.value))
+    await nextTick()
+    fitVisibleMarkers()
+  }
+
+  await applyMapQuery()
 })
 </script>
 

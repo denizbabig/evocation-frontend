@@ -18,49 +18,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue'
 
-const isDarkMode = ref(true);
+/* State */
+const isDarkMode = ref(true)
 
-/**
- * Wendet das gegebene Farbschema auf das HTML-Element an und speichert es.
- * @param theme 'light' oder 'dark'
- */
+/* Helpers */
 function applyTheme(theme: 'light' | 'dark') {
-  const htmlElement = document.documentElement;
+  const htmlElement = document.documentElement
 
-  // Entfernt die alte Klasse und fügt die neue hinzu
-  htmlElement.classList.remove('light', 'dark');
-  htmlElement.classList.add(theme);
+  htmlElement.classList.remove('light', 'dark')
+  htmlElement.classList.add(theme)
 
-  // Speichert die Präferenz und aktualisiert den Vue-State
-  localStorage.setItem('theme', theme);
-  isDarkMode.value = theme === 'dark';
+  localStorage.setItem('theme', theme)
+  isDarkMode.value = theme === 'dark'
 }
 
+/* UI Actions */
 function toggleTheme() {
-  const newTheme = isDarkMode.value ? 'light' : 'dark';
-  applyTheme(newTheme);
+  const newTheme = isDarkMode.value ? 'light' : 'dark'
+  applyTheme(newTheme)
 }
 
-// Initialisierung: Wird ausgeführt, sobald die Komponente im DOM ist
+/* Lifecycle */
 onMounted(() => {
-  const savedTheme = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const savedTheme = localStorage.getItem('theme')
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
 
-  let initialTheme: 'light' | 'dark';
+  let initialTheme: 'light' | 'dark'
 
   if (savedTheme === 'light' || savedTheme === 'dark') {
-    // 1. Priorität: Gespeichertes Thema verwenden
-    initialTheme = savedTheme;
+    initialTheme = savedTheme
   } else if (prefersDark) {
-    // 2. Priorität: System-Einstellung (Dark Mode)
-    initialTheme = 'dark';
+    initialTheme = 'dark'
   } else {
-    // 3. Fallback: System-Einstellung (Light Mode)
-    initialTheme = 'light';
+    initialTheme = 'light'
   }
 
-  applyTheme(initialTheme);
-});
+  applyTheme(initialTheme)
+})
 </script>

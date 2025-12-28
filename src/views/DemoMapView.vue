@@ -221,35 +221,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+/* Imports */
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import {
-  Bars3Icon,
-  MagnifyingGlassPlusIcon,
-  MagnifyingGlassMinusIcon,
-  MapPinIcon,
   ArrowPathIcon,
+  Bars3Icon,
+  MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon,
+  MapPinIcon,
 } from '@heroicons/vue/24/outline'
 
-import MapLoad from '@/components/MapLoad.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
-import TripSwitcher from '@/components/TripSwitcher.vue'
+import MapLoad from '@/components/MapLoad.vue'
 import MarkerStoryModal from '@/components/MarkerStoryModal.vue'
+import TripSwitcher from '@/components/TripSwitcher.vue'
 import gemini2 from '@/assets/gemini2.png'
-import type { Marker } from '@/types/Marker'
-
 import { useDemoStore } from '@/stores/demoStore'
 
+import type { Marker } from '@/types/Marker'
+
+/* Constants */
 defineOptions({ name: 'DemoMapViewPage' })
 
+const MIN_DETAIL_ZOOM = 6.5
+
+/* Refs */
 const router = useRouter()
 const route = useRoute()
-
-const demo = useDemoStore()
-const { markers, trips, isLoading, error } = storeToRefs(demo)
 
 const isSidebarOpen = ref(false)
 const searchQuery = ref('')
@@ -260,26 +262,33 @@ const clusterOn = ref(true)
 
 const selectedId = ref<number | null>(null)
 const detailOpen = ref(false)
+const pendingOpenId = ref<number | null>(null)
 
+/* Stores */
+const demo = useDemoStore()
+const { markers, trips, isLoading, error } = storeToRefs(demo)
+
+/* Computeds */
 const selected = computed<Marker | null>(() => {
   if (selectedId.value == null) return null
-  return (markers.value as any[]).find(m => Number(m.id) === Number(selectedId.value)) ?? null
+  return (markers.value as any[]).find((m) => Number(m.id) === Number(selectedId.value)) ?? null
 })
 
 const displayMarkers = computed<any[]>(() => {
   if (selectedTripId.value == null) return markers.value as any
 
-  const trip = (trips.value as any[]).find(t => Number(t.id) === Number(selectedTripId.value))
+  const trip = (trips.value as any[]).find((t) => Number(t.id) === Number(selectedTripId.value))
   const ids = new Set<number>((trip?.stops ?? []).map((s: any) => Number(s.markerId)))
-  return (markers.value as any[]).filter(m => ids.has(Number(m.id)))
+  return (markers.value as any[]).filter((m) => ids.has(Number(m.id)))
 })
-
 
 const displayRoutes = computed<Array<{ fromId: number; toId: number }>>(() => {
   if (selectedTripId.value == null) return []
 
-  const trip = (trips.value as any[]).find(t => Number(t.id) === Number(selectedTripId.value))
-  const stops = [...(trip?.stops ?? [])].sort((a: any, b: any) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+  const trip = (trips.value as any[]).find((t) => Number(t.id) === Number(selectedTripId.value))
+  const stops = [...(trip?.stops ?? [])].sort(
+    (a: any, b: any) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)
+  )
   if (stops.length < 2) return []
 
   const edges: Array<{ fromId: number; toId: number }> = []
@@ -291,96 +300,12 @@ const displayRoutes = computed<Array<{ fromId: number; toId: number }>>(() => {
 
 const activeTripLabel = computed(() => {
   if (selectedTripId.value == null) return 'Alle Marker'
-  const t = (trips.value as any[]).find(x => Number(x?.id) === Number(selectedTripId.value))
+  const t = (trips.value as any[]).find((x) => Number(x?.id) === Number(selectedTripId.value))
   const title = (t?.title ?? '').toString().trim()
   return title ? title : `Trip #${selectedTripId.value}`
 })
 
-function noop() {}
-
-function goHome() {
-  router.push('/')
-}
-
-async function reload() {
-  await demo.loadDemo()
-  selectedTripId.value = null
-  await nextTick()
-  await centerInitial()
-}
-
-
-
-async function onSelectTrip(id: number | null) {
-  selectedTripId.value = id
-  await nextTick()
-
-  // wenn "Alle Marker"
-  if (id == null) {
-    fitAllMarkers()
-    return
-  }
-
-  fitCurrentTripMarkers()
-}
-
-
-function handleOpenOnMap(id: number) {
-  const m = (markers.value as any[]).find(x => Number(x.id) === Number(id))
-  if (m) mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 13)
-}
-
-// map controls
-const onZoomIn = () => mapRef.value?.zoomIn()
-const onZoomOut = () => mapRef.value?.zoomOut()
-const onReset = () => mapRef.value?.resetView?.()
-const onLocate = () => {
-  if (!navigator.geolocation) return console.warn('Geolocation not supported')
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => mapRef.value?.flyTo(coords.latitude, coords.longitude, 13),
-    (err) => console.warn('Geolocation error:', err),
-    { enableHighAccuracy: true, timeout: 8000 }
-  )
-}
-
-function fitCurrentTripMarkers() {
-  const list = displayMarkers.value
-  if (!list?.length) return
-
-  // 1 Marker => nicer als fitBounds
-  if (list.length === 1) {
-    const m = list[0]
-    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 6.5) // oder 5/7 wie du willst
-    return
-  }
-
-  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
-  for (const m of list) {
-    const lat = Number(m.lat), lng = Number(m.lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-    west = Math.min(west, lng)
-    south = Math.min(south, lat)
-    east = Math.max(east, lng)
-    north = Math.max(north, lat)
-  }
-
-  if (west === Infinity) return
-
-  // padding nach UI (rechts controls, oben search) ruhig etwas größer
-  mapRef.value?.fitBounds?.(west, south, east, north, 96)
-}
-
-
-// search
-function onSuggestSelect(s: { lat: number; lon: number; display_name: string }) {
-  mapRef.value?.flyTo(s.lat, s.lon, 10)
-}
-function onSearchResults(payload: { query: string; results: Array<any>; best?: { lat: string; lon: string } }) {
-  const best = payload?.best
-  if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 10)
-}
-
-// query helpers
+/* Pure Helpers */
 function applyGotoFromQuery() {
   const goto = route.query.goto as string | undefined
   const zoomStr = route.query.zoom as string | undefined
@@ -395,117 +320,28 @@ function applyGotoFromQuery() {
     mapRef.value?.flyTo(lat, lng, Number.isFinite(zoom) ? zoom : 10)
   }
 }
+
 function applyFocusFromQuery() {
   const focusStr = route.query.focus as string | undefined
   const id = focusStr ? Number(focusStr) : NaN
   if (!Number.isFinite(id)) return
 
-  const m = (markers.value as any[]).find(x => Number(x.id) === Number(id))
+  const m = (markers.value as any[]).find((x) => Number(x.id) === Number(id))
   if (m) mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 13)
-}
-
-onMounted(async () => {
-  try {
-    await demo.loadDemo()
-    selectedTripId.value = null
-
-    await nextTick()
-    await centerInitial()      // ✅ statt flyToFirst()
-
-    applyGotoFromQuery()
-    applyFocusFromQuery()
-  } catch (e: any) {
-    console.error(e)
-  }
-})
-
-function flyToInitial() {
-  // z.B. Europa Trip per Titel finden
-  const europe = (trips.value as any[]).find(t => (t.title ?? '').toLowerCase().includes('europa'))
-  if (europe?.stops?.length) {
-    selectedTripId.value = Number(europe.id)
-    const firstStopId = Number([...europe.stops].sort((a:any,b:any)=>a.orderIndex-b.orderIndex)[0].markerId)
-    const m = (markers.value as any[]).find(x => Number(x.id) === firstStopId)
-    if (m) {
-      mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 4.8)
-      return
-    }
-  }
-
-  // fallback: Berlin
-  mapRef.value?.flyTo(52.52, 13.405, 3.5)
-}
-
-const MIN_DETAIL_ZOOM = 6.5
-const pendingOpenId = ref<number | null>(null)
-
-function openDetail(id: number) {
-  selectedId.value = id
-  detailOpen.value = true
-}
-
-async function onMarkerClick({ id }: { id: number }) {
-  const m = (markers.value as any[]).find(x => Number(x.id) === Number(id))
-  if (!m) return
-
-  const z = mapRef.value?.getZoom?.() ?? 0
-  if (z < MIN_DETAIL_ZOOM) {
-    pendingOpenId.value = id
-    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), MIN_DETAIL_ZOOM)
-    return
-  }
-
-  openDetail(id)
-}
-
-function onMapMove(payload: { center: { lat: number; lng: number }; zoom: number }) {
-  if (pendingOpenId.value != null && payload.zoom >= MIN_DETAIL_ZOOM) {
-    const id = pendingOpenId.value
-    pendingOpenId.value = null
-    openDetail(id)
-  }
-}
-
-// optional (MapView-like “click outside closes”)
-function onMapClick() {
-  pendingOpenId.value = null
-  detailOpen.value = false
-}
-
-// wenn Trip gewechselt wird: pending abbrechen + modal schließen (macht UX sauber)
-watch(selectedTripId, () => {
-  pendingOpenId.value = null
-  detailOpen.value = false
-})
-async function centerInitial() {
-  // 0) Wenn URL eine Position vorgibt => die gewinnt
-  const goto = (route.query.goto as string | undefined) ?? (route.query.center as string | undefined)
-  if (goto) {
-    applyGotoFromQuery()
-    return
-  }
-
-  // 1) Versuch: echte Geolocation (Permission)
-  const pos = await tryGetBrowserLocation(2500)
-  if (pos) {
-    mapRef.value?.flyTo(pos.lat, pos.lng, 1.8) // Zoom ggf. anpassen
-    return
-  }
-
-  // 2) Fallback: alle Marker in View (fühlt sich bei Demo am besten an)
-  fitAllMarkers()
-
-  // 3) Optionaler Fallback wenn keine Marker da:
-  // mapRef.value?.flyTo(52.52, 13.405, 4) // Berlin
 }
 
 function fitAllMarkers() {
   const list = displayMarkers.value
   if (!list?.length) return
 
-  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
+  let west = Infinity
+  let south = Infinity
+  let east = -Infinity
+  let north = -Infinity
+
   for (const m of list) {
-    const lat = Number(m.lat), lng = Number(m.lng)
+    const lat = Number(m.lat)
+    const lng = Number(m.lng)
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
     west = Math.min(west, lng)
     south = Math.min(south, lat)
@@ -514,7 +350,36 @@ function fitAllMarkers() {
   }
 
   if (west === Infinity) return
-  mapRef.value?.fitBounds?.(west, south, east, north, 72) // MapLoad exposed fitBounds ✅
+  mapRef.value?.fitBounds?.(west, south, east, north, 72)
+}
+
+function fitCurrentTripMarkers() {
+  const list = displayMarkers.value
+  if (!list?.length) return
+
+  if (list.length === 1) {
+    const m = list[0]
+    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 6.5)
+    return
+  }
+
+  let west = Infinity
+  let south = Infinity
+  let east = -Infinity
+  let north = -Infinity
+
+  for (const m of list) {
+    const lat = Number(m.lat)
+    const lng = Number(m.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    west = Math.min(west, lng)
+    south = Math.min(south, lat)
+    east = Math.max(east, lng)
+    north = Math.max(north, lat)
+  }
+
+  if (west === Infinity) return
+  mapRef.value?.fitBounds?.(west, south, east, north, 96)
 }
 
 function tryGetBrowserLocation(timeoutMs = 2500): Promise<{ lat: number; lng: number } | null> {
@@ -537,8 +402,137 @@ function tryGetBrowserLocation(timeoutMs = 2500): Promise<{ lat: number; lng: nu
   })
 }
 
-watch(() => route.query.goto, () => applyGotoFromQuery())
-watch(() => route.query.focus, () => applyFocusFromQuery())
+/* Init */
+async function centerInitial() {
+  const goto = (route.query.goto as string | undefined) ?? (route.query.center as string | undefined)
+  if (goto) {
+    applyGotoFromQuery()
+    return
+  }
+
+  const pos = await tryGetBrowserLocation(2500)
+  if (pos) {
+    mapRef.value?.flyTo(pos.lat, pos.lng, 1.8)
+    return
+  }
+
+  fitAllMarkers()
+}
+
+onMounted(async () => {
+  try {
+    await demo.loadDemo()
+    selectedTripId.value = null
+
+    await nextTick()
+    await centerInitial()
+
+    applyGotoFromQuery()
+    applyFocusFromQuery()
+  } catch {
+    /* noop */
+  }
+})
+
+/* Watcher */
+watch(selectedTripId, () => {
+  pendingOpenId.value = null
+  detailOpen.value = false
+})
+
+watch(
+  () => route.query.goto,
+  () => applyGotoFromQuery()
+)
+
+watch(
+  () => route.query.focus,
+  () => applyFocusFromQuery()
+)
+
+/* UI Handlers */
+function noop() {}
+
+function goHome() {
+  router.push('/')
+}
+
+async function reload() {
+  await demo.loadDemo()
+  selectedTripId.value = null
+  await nextTick()
+  await centerInitial()
+}
+
+async function onSelectTrip(id: number | null) {
+  selectedTripId.value = id
+  await nextTick()
+
+  if (id == null) {
+    fitAllMarkers()
+    return
+  }
+
+  fitCurrentTripMarkers()
+}
+
+function handleOpenOnMap(id: number) {
+  const m = (markers.value as any[]).find((x) => Number(x.id) === Number(id))
+  if (m) mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 13)
+}
+
+function onSuggestSelect(s: { lat: number; lon: number; display_name: string }) {
+  mapRef.value?.flyTo(s.lat, s.lon, 10)
+}
+
+function onSearchResults(payload: { query: string; results: Array<any>; best?: { lat: string; lon: string } }) {
+  const best = payload?.best
+  if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 10)
+}
+
+const onZoomIn = () => mapRef.value?.zoomIn()
+const onZoomOut = () => mapRef.value?.zoomOut()
+const onReset = () => mapRef.value?.resetView?.()
+const onLocate = () => {
+  if (!navigator.geolocation) return
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => mapRef.value?.flyTo(coords.latitude, coords.longitude, 13),
+    () => {},
+    { enableHighAccuracy: true, timeout: 8000 }
+  )
+}
+
+function openDetail(id: number) {
+  selectedId.value = id
+  detailOpen.value = true
+}
+
+async function onMarkerClick({ id }: { id: number }) {
+  const m = (markers.value as any[]).find((x) => Number(x.id) === Number(id))
+  if (!m) return
+
+  const z = mapRef.value?.getZoom?.() ?? 0
+  if (z < MIN_DETAIL_ZOOM) {
+    pendingOpenId.value = id
+    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), MIN_DETAIL_ZOOM)
+    return
+  }
+
+  openDetail(id)
+}
+
+function onMapMove(payload: { center: { lat: number; lng: number }; zoom: number }) {
+  if (pendingOpenId.value != null && payload.zoom >= MIN_DETAIL_ZOOM) {
+    const id = pendingOpenId.value
+    pendingOpenId.value = null
+    openDetail(id)
+  }
+}
+
+function onMapClick() {
+  pendingOpenId.value = null
+  detailOpen.value = false
+}
 </script>
 
 <style scoped>

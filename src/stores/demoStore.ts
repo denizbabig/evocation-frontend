@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+/* Types */
 type TripStopDTO = { id?: number; markerId: number; orderIndex: number }
 
 export type DemoTrip = {
@@ -27,14 +28,18 @@ export type DemoMarker = {
   [k: string]: any
 }
 
+/* Store */
 export const useDemoStore = defineStore('demo', () => {
+  /* Konstanten */
   const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
+  /* Refs */
   const markers = ref<DemoMarker[]>([])
   const trips = ref<DemoTrip[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  /* UI Handlers */
   function clear() {
     markers.value = []
     trips.value = []
@@ -42,6 +47,7 @@ export const useDemoStore = defineStore('demo', () => {
     isLoading.value = false
   }
 
+  /* Final Actions */
   async function loadDemo() {
     error.value = null
     isLoading.value = true

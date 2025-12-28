@@ -141,31 +141,38 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import { computed, ref } from 'vue'
 
+/* Types */
 type TripLike = { id: number | string; title?: string; stopCount?: number }
 
+/* Props */
 const props = defineProps<{
   trips: TripLike[]
   selectedId: number | null
   allowCreate?: boolean
 }>()
 
-const allowCreate = computed(() => props.allowCreate !== false)
-
+/* Emits */
 const emit = defineEmits<{
   (e: 'select', id: number | null): void
   (e: 'create'): void
 }>()
 
+/* Refs */
 const open = ref(false)
+
+/* Computeds */
+const allowCreate = computed(() => props.allowCreate !== false)
 
 const label = computed(() => {
   if (!props.selectedId) return 'Alle Marker'
-  const t = props.trips.find(x => Number(x.id) === Number(props.selectedId))
+  const t = props.trips.find((x) => Number(x.id) === Number(props.selectedId))
   return t?.title?.trim?.() ? t.title! : `Trip #${props.selectedId}`
 })
 
+/* UI Handlers */
 function select(id: number | null) {
   open.value = false
   emit('select', id)

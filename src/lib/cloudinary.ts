@@ -1,8 +1,9 @@
-// src/lib/cloudinary.ts
+/* Imports */
 import { api } from '@/lib/api'
-import type { ImageAsset, MediaType } from '@/types/ImageAsset'
 import { preprocessImageForUpload } from '@/lib/imagePreprocess'
+import type { ImageAsset, MediaType } from '@/types/ImageAsset'
 
+/* Types */
 type CloudinarySignResponse = {
   cloudName: string
   apiKey: string
@@ -12,13 +13,13 @@ type CloudinarySignResponse = {
   publicId: string
   allowedFormats?: string | null
   overwrite?: boolean
-  resourceType?: 'image' | 'video' // ✅ neu
+  resourceType?: 'image' | 'video'
 }
 
 type UploadOptions = {
   log?: boolean
   order?: number
-  resourceType?: 'image' | 'video' // ✅ optional override
+  resourceType?: 'image' | 'video'
   preprocess?: {
     maxDim?: number
     quality?: number
@@ -28,6 +29,10 @@ type UploadOptions = {
   }
 }
 
+/* Konstanten */
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
+
+/* Pure Helpers */
 function mediaTypeFromResourceType(rt: 'image' | 'video'): MediaType {
   return rt === 'video' ? 'VIDEO' : 'IMAGE'
 }
@@ -37,20 +42,19 @@ function guessResourceType(file: File): 'image' | 'video' {
   return 'image'
 }
 
-export async function uploadToCloudinary(
-  file: File,
-  opts: UploadOptions = {}
-): Promise<ImageAsset> {
+function stripExtAny(publicId: string) {
+  return publicId.replace(/\.(jpg|jpeg|png|webp|gif|avif|mp4|mov|webm|mkv|m4v)$/i, '')
+}
+
+/* Upload */
+export async function uploadToCloudinary(file: File, opts: UploadOptions = {}): Promise<ImageAsset> {
   const { log = false, order = 0 } = opts
   const resourceType: 'image' | 'video' = opts.resourceType ?? guessResourceType(file)
 
   if (!file || !(file instanceof File)) throw new Error('Keine Datei ausgewählt')
 
-  // =========================
-  // Guardrails (Image/Video)
-  // =========================
-  const IMAGE_MAX = 8 * 1024 * 1024 // 8MB
-  const VIDEO_MAX = 80 * 1024 * 1024 // 80MB (du kannst das runterdrehen)
+  const IMAGE_MAX = 8 * 1024 * 1024
+  const VIDEO_MAX = 80 * 1024 * 1024
 
   const ALLOWED_IMAGE_MIME = new Set([
     'image/jpeg',
@@ -61,12 +65,7 @@ export async function uploadToCloudinary(
     'image/heif',
   ])
 
-  const ALLOWED_VIDEO_MIME = new Set([
-    'video/mp4',
-    'video/quicktime', // .mov
-    'video/webm',
-    'video/ogg',
-  ])
+  const ALLOWED_VIDEO_MIME = new Set(['video/mp4', 'video/quicktime', 'video/webm', 'video/ogg'])
 
   if (resourceType === 'image') {
     if (!file.type?.startsWith('image/')) throw new Error(`Keine Bilddatei: ${file.type || 'unknown'}`)
@@ -78,9 +77,6 @@ export async function uploadToCloudinary(
     if (file.size > VIDEO_MAX) throw new Error(`Video zu groß (max ${Math.round(VIDEO_MAX / 1024 / 1024)}MB)`)
   }
 
-  // =========================
-  // Preprocess nur für Images
-  // =========================
   const uploadFile =
     resourceType === 'image'
       ? await preprocessImageForUpload(file, {
@@ -99,9 +95,6 @@ export async function uploadToCloudinary(
     console.log('[upload] prepared', uploadFile.type, uploadFile.size, uploadFile.name)
   }
 
-  // =========================
-  // Signed params vom Backend
-  // =========================
   const { data: sign } = await api.get<CloudinarySignResponse>(
     `/cloudinary/sign?resourceType=${encodeURIComponent(resourceType)}`
   )
@@ -129,18 +122,13 @@ export async function uploadToCloudinary(
     })
   }
 
-  // =========================
-  // Direkt zu Cloudinary upload
-  // =========================
   const url = `https://api.cloudinary.com/v1_1/${encodeURIComponent(sign.cloudName)}/${rt}/upload`
 
   const fd = new FormData()
   fd.append('file', uploadFile)
-
   fd.append('api_key', sign.apiKey)
   fd.append('timestamp', String(sign.timestamp))
   fd.append('signature', sign.signature)
-
   fd.append('folder', sign.folder)
   fd.append('public_id', sign.publicId)
   fd.append('overwrite', String(overwrite))
@@ -170,15 +158,7 @@ export async function uploadToCloudinary(
   }
 }
 
-// =========================
-// Delivery helpers
-// =========================
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
-
-function stripExtAny(publicId: string) {
-  return publicId.replace(/\.(jpg|jpeg|png|webp|gif|avif|mp4|mov|webm|mkv|m4v)$/i, '')
-}
-
+/* Delivery Helpers */
 export function cldImageUrl(publicId: string, transform = 'f_auto,q_auto') {
   if (!publicId) return ''
   if (!CLOUD_NAME) return ''

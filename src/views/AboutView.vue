@@ -80,14 +80,16 @@
 </template>
 
 <script setup lang="ts">
-import AppButton from '@/components/AppButton.vue'
-import gemini2 from '@/assets/gemini2.png'
-import gemini1 from '@/assets/gemini1.png'
-import GlobeBg from '@/assets/globe-bg.png'
-import Sidebar from '@/components/DashboardSidebar.vue'
+/* Imports */
 import { ref } from 'vue'
 
+import AppButton from '@/components/AppButton.vue'
+import Sidebar from '@/components/DashboardSidebar.vue'
+import gemini2 from '@/assets/gemini2.png'
+
+/* Refs */
 const isSidebarOpen = ref(false)
 
+/* Options */
 defineOptions({ name: 'AboutView' })
 </script>

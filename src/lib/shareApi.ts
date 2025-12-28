@@ -1,8 +1,9 @@
-// src/lib/shareApi.ts
 import type { SharedMapDTO } from '@/types/Share'
 
+/* Konstanten */
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080/api'
 
+/* Helpers */
 function buildUrl(path: string) {
   if (path.startsWith('http')) return path
   const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
@@ -10,6 +11,7 @@ function buildUrl(path: string) {
   return `${base}${p}`
 }
 
+/* Types */
 export class PublicHttpError extends Error {
   status: number
   body?: string
@@ -22,11 +24,7 @@ export class PublicHttpError extends Error {
   }
 }
 
-/**
- * ✅ PUBLIC fetch:
- * - KEIN Authorization Header
- * - credentials: 'omit'
- */
+/* Public API */
 export async function publicFetch<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const url = buildUrl(path)
 

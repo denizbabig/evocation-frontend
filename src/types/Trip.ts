@@ -1,4 +1,3 @@
-// src/types/Trip.ts
 import type { Visibility } from '@/types/Marker'
 
 export type Trip = {
@@ -6,12 +5,9 @@ export type Trip = {
   title: string
   createdAt?: string
   stopCount?: number
-
   coverUrl?: string | null
   coverPublicId?: string | null
   coverMarkerId?: number | null
-
-  // ✅ neu
   visibility?: Visibility
 }
 

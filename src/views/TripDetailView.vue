@@ -390,61 +390,83 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
+
 import AppButton from '@/components/AppButton.vue'
+import DashboardSidebar from '@/components/DashboardSidebar.vue'
+import TripEditModal from '@/components/TripEditModal.vue'
+import TripMarkerAssignModal from '@/components/TripMarkerAssignModal.vue'
+
 import gemini2 from '@/assets/gemini2.png'
-import { useTripStore } from '@/stores/TripStore'
+
 import { useMarkerStore } from '@/stores/MarkerStore'
+import { useTripStore } from '@/stores/TripStore'
 import { apiFetch } from '@/lib/api'
 import { markerCover } from '@/lib/markerImages'
-import DashboardSidebar from '@/components/DashboardSidebar.vue'
+
 import type { Visibility } from '@/types/Marker'
 
 defineOptions({ name: 'TripDetailView' })
 
 const router = useRouter()
 const route = useRoute()
+
 const isSidebarOpen = ref(false)
+
+const stopsUi = ref<any[]>([])
+
+const stopDraggingIndex = ref<number | null>(null)
+const stopDragOverIndex = ref<number | null>(null)
+
+const addOpen = ref(false)
+
+const editCoverOpen = ref(false)
+const coverModalKey = ref(0)
+
+const stopsScrollEl = ref<HTMLDivElement | null>(null)
+const showStopsScrollLeft = ref(false)
+const showStopsScrollRight = ref(false)
+
+let stopsRaf = 0
+
 const tripStore = useTripStore()
-const { trips, stops, activeTripId } = storeToRefs(tripStore)
+const { trips, stops } = storeToRefs(tripStore)
 
 const markerStore = useMarkerStore()
 const { markers } = storeToRefs(markerStore)
 
+const assignedIds = ref<Set<number>>(new Set())
+
 const tripId = computed(() => Number(route.params.id))
 
 const activeTrip = computed(() => trips.value.find(t => Number(t.id) === Number(tripId.value)) ?? null)
-const stopsSorted = computed(() => [...(stops.value ?? [])].sort((a,b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)))
-// --- UI list (mutable) for smooth drag&drop ---
-// --- UI list (mutable) for smooth drag&drop ---
-const stopsUi = ref<any[]>([])
 
-// --- drag&drop state (MUSS vor dem watch stehen wegen immediate:true) ---
-const stopDraggingIndex = ref<number | null>(null)
-const stopDragOverIndex = ref<number | null>(null)
+const stopsSorted = computed(() =>
+  [...(stops.value ?? [])].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+)
+
 const isStopDragging = computed(() => stopDraggingIndex.value !== null)
+
+const tripTitle = computed(() => activeTrip.value?.title || '—')
 
 function safeId(s: string) {
   return String(s).replace(/[^a-zA-Z0-9_-]/g, '_')
 }
+
 function stopDashGradId(markerId: number) {
   return `stop-dash-${safeId(String(markerId))}`
 }
 
-watch(stopsSorted, (v) => {
-  // immer store->ui sync, außer gerade dragging (damit es nicht “snappt”)
-  if (stopDraggingIndex.value != null) return
-  stopsUi.value = [...(v ?? [])]
-}, { immediate: true })
+function markerById(id: number) {
+  return markers.value.find(m => Number(m.id) === Number(id)) ?? null
+}
 
-// --- cover helper like MarkerView / Dashboard ---
 function stopCoverSrc(markerId: number): string | null {
   const m = markerById(markerId)
   if (!m) return null
   try {
-    // markerCover liefert meistens { card, thumb, full } – wir nehmen card, fallback thumb
     const c = markerCover(m)
     return (c?.card ?? c?.thumb ?? null) as any
   } catch {
@@ -464,6 +486,46 @@ function isVideoUrl(u?: string | null) {
     s.endsWith('.m4v') ||
     s.endsWith('.mkv')
   )
+}
+
+async function loadAssignedIds() {
+  const ids = (await apiFetch('/trips/assigned-marker-ids')) as number[]
+  assignedIds.value = new Set((ids ?? []).map(Number))
+}
+
+watch(
+  stopsSorted,
+  (v) => {
+    if (stopDraggingIndex.value != null) return
+    stopsUi.value = [...(v ?? [])]
+  },
+  { immediate: true }
+)
+
+watch(editCoverOpen, (o) => {
+  if (o) coverModalKey.value++
+})
+
+watch(
+  stopsUi,
+  () => {
+    requestAnimationFrame(updateStopsScrollHints)
+  },
+  { deep: false }
+)
+
+/* BUGFIX: template handler missing */
+function goDashboard() {
+  router.push('/dashboard')
+}
+
+async function openInMap() {
+  router.push('/mapview')
+}
+
+async function openAddModal() {
+  addOpen.value = true
+  await loadAssignedIds()
 }
 
 function onStopDragStart(i: number) {
@@ -486,7 +548,6 @@ async function onStopDrop(targetIndex: number) {
     arr.splice(targetIndex, 0, moved)
     stopsUi.value = arr
 
-    // Backend reorder
     const markerIdsInOrder = arr.map(x => x.markerId)
     await tripStore.reorder(markerIdsInOrder)
   }
@@ -499,11 +560,11 @@ function onStopDragEnd() {
   stopDragOverIndex.value = null
 }
 
-// fallback: buttons move inside UI + persist
 async function moveUi(index: number, dir: -1 | 1) {
   const arr = [...stopsUi.value]
   const j = index + dir
   if (j < 0 || j >= arr.length) return
+
   const tmp = arr[index]
   arr[index] = arr[j]
   arr[j] = tmp
@@ -512,137 +573,7 @@ async function moveUi(index: number, dir: -1 | 1) {
   const markerIdsInOrder = arr.map(x => x.markerId)
   await tripStore.reorder(markerIdsInOrder)
 }
-function markerById(id: number) {
-  return markers.value.find(m => Number(m.id) === Number(id)) ?? null
-}
 
-const tripTitle = computed(() => activeTrip.value?.title || '—')
-
-onMounted(async () => {
-  // ✅ wichtig: wenn man direkt auf die Detail-URL geht, ist trips oft noch leer
-  if (!trips.value?.length) {
-    await tripStore.loadTrips()
-  }
-
-  await tripStore.selectTrip(tripId.value)
-
-  if (!markers.value.length) await markerStore.loadMarkers()
-  await loadAssignedIds()
-  requestAnimationFrame(updateStopsScrollHints)
-})
-
-function goBack() {
-  router.back()
-}
-
-async function openInMap() {
-  // activeTrip ist eh gesetzt – einfach zur Map
-  router.push('/mapview')
-}
-
-async function remove(markerId: number) {
-  await tripStore.removeStop(markerId)
-}
-
-/** Add modal */
-const addOpen = ref(false)
-const mq = ref('')
-const addError = ref<string | null>(null)
-
-const markerIdsInTrip = computed(() => new Set(stopsSorted.value.map(s => Number(s.markerId))))
-
-const filteredMarkersToAdd = computed(() => {
-  const q = mq.value.trim().toLowerCase()
-
-  return markers.value
-    // 1) nicht im aktuellen Trip
-    .filter(m => !markerIdsInTrip.value.has(Number(m.id)))
-    // 2) nicht in irgendeinem Trip (Backend-Regel)
-    .filter(m => !assignedIds.value.has(Number(m.id)))
-    // 3) Suche
-    .filter(m => {
-      if (!q) return true
-      return (
-        (m.title ?? '').toLowerCase().includes(q) ||
-        (m.description ?? '').toLowerCase().includes(q) ||
-        (m.placeName ?? '').toLowerCase().includes(q)
-      )
-    })
-})
-
-const lastAddedId = ref<number | null>(null)
-
-async function add(markerId: number) {
-  addError.value = null
-  try {
-    await tripStore.addStop(markerId)
-
-    // wichtig: Daten refreshen, damit der Marker sofort aus der Liste verschwindet
-    await loadAssignedIds()
-    if (tripStore.activeTripId) await tripStore.loadStops(tripStore.activeTripId)
-
-    // Mini-Feedback (optional)
-    lastAddedId.value = markerId
-    setTimeout(() => {
-      if (lastAddedId.value === markerId) lastAddedId.value = null
-    }, 900)
-
-    // Modal bleibt offen ✅
-    // mq.value bleibt wie es ist (damit man schnell mehrere aus einem Suchbegriff adden kann)
-  } catch (e: any) {
-    const msg = String(e?.message ?? e)
-    if (msg.includes('409') || msg.includes('already assigned')) {
-      addError.value = 'Dieser Marker ist bereits in einem anderen Trip.'
-    } else {
-      addError.value = 'Konnte Marker nicht hinzufügen.'
-    }
-  }
-}
-const assignedIds = ref<Set<number>>(new Set())
-
-async function loadAssignedIds() {
-  const ids = await apiFetch('/trips/assigned-marker-ids') as number[]
-  assignedIds.value = new Set((ids ?? []).map(Number))
-}
-
-async function openAddModal() {
-  addError.value = null
-  addOpen.value = true
-  await loadAssignedIds()
-}
-
-import TripEditModal from '@/components/TripEditModal.vue'
-
-const editCoverOpen = ref(false)
-
-async function onTripEdit(p: { title: string; coverUrl: string | null; coverPublicId: string | null; visibility: Visibility }) {
-  if (!activeTrip.value) return
-  await tripStore.updateTrip(activeTrip.value.id, {
-    title: p.title,
-    coverUrl: p.coverUrl,
-    coverPublicId: p.coverPublicId,
-    coverMarkerId: null,
-    visibility: p.visibility,
-  })
-}
-
-async function onDeleteTrip() {
-  if (!activeTrip.value) return
-  await tripStore.deleteTrip(activeTrip.value.id)
-  router.push('/trips')
-}
-
-const coverModalKey = ref(0)
-
-watch(editCoverOpen, (o) => {
-  if (o) coverModalKey.value++
-})
-
-const stopsScrollEl = ref<HTMLDivElement | null>(null)
-const showStopsScrollLeft = ref(false)
-const showStopsScrollRight = ref(false)
-
-let stopsRaf = 0
 function onStopsScroll() {
   cancelAnimationFrame(stopsRaf)
   stopsRaf = requestAnimationFrame(updateStopsScrollHints)
@@ -655,6 +586,7 @@ function updateStopsScrollHints() {
     showStopsScrollRight.value = false
     return
   }
+
   const EPS = 6
   showStopsScrollLeft.value = el.scrollLeft > EPS
   showStopsScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - EPS
@@ -674,31 +606,41 @@ function stopsScrollRight() {
   requestAnimationFrame(updateStopsScrollHints)
 }
 
-watch(stopsUi, async () => {
-  // nächster frame damit scrollWidth stimmt
-  requestAnimationFrame(updateStopsScrollHints)
-}, { deep: false })
+async function remove(markerId: number) {
+  await tripStore.removeStop(markerId)
+}
 
-import TripMarkerAssignModal from '@/components/TripMarkerAssignModal.vue'
+async function onTripEdit(p: { title: string; coverUrl: string | null; coverPublicId: string | null; visibility: Visibility }) {
+  if (!activeTrip.value) return
+  await tripStore.updateTrip(activeTrip.value.id, {
+    title: p.title,
+    coverUrl: p.coverUrl,
+    coverPublicId: p.coverPublicId,
+    coverMarkerId: null,
+    visibility: p.visibility,
+  })
+}
+
+async function onDeleteTrip() {
+  if (!activeTrip.value) return
+  await tripStore.deleteTrip(activeTrip.value.id)
+  router.push('/trips')
+}
 
 async function afterMarkerAdded() {
-  // das gleiche, was du bisher nach add() machst:
   await loadAssignedIds()
   if (tripStore.activeTripId) await tripStore.loadStops(tripStore.activeTripId)
 }
 
+onMounted(async () => {
+  if (!trips.value?.length) {
+    await tripStore.loadTrips()
+  }
+
+  await tripStore.selectTrip(tripId.value)
+
+  if (!markers.value.length) await markerStore.loadMarkers()
+  await loadAssignedIds()
+  requestAnimationFrame(updateStopsScrollHints)
+})
 </script>
-
-<style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity .2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-.fade-slide-enter-active, .fade-slide-leave-active { transition: all .25s ease; }
-.fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(8px); }
-
-.evoc-scroll::-webkit-scrollbar { height: 10px; }
-.evoc-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 999px; }
-.evoc-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
-.evoc-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
-
-</style>

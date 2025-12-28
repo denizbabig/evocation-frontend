@@ -1,28 +1,29 @@
-// src/lib/markerImages.ts
-import { cldCard, cldThumb, cldFull } from '@/lib/cloudinaryDelivery'
+/* Imports */
+import { cldCard, cldFull, cldThumb } from '@/lib/cloudinaryDelivery'
 
+/* Types */
 export type NormalizedImage = {
   id: string | number
   order: number
   publicId?: string
   secureUrl?: string
-  // ready-to-use URLs
   full: string
   card: string
   thumb: string
 }
 
+/* Helpers */
 function pick<T>(v: T | undefined | null) {
   return v == null ? '' : String(v)
 }
 
+/* Public API */
 export function normalizeMarkerImages(marker: any): NormalizedImage[] {
   const raw = (marker?.images ?? []) as any[]
   if (!Array.isArray(raw) || raw.length === 0) return []
 
   const norm = raw
     .map((it, i) => {
-      // akzeptiere auch string-urls (fallback)
       if (typeof it === 'string') {
         const url = it
         return {
@@ -37,11 +38,12 @@ export function normalizeMarkerImages(marker: any): NormalizedImage[] {
       const publicId = pick(it.publicId ?? it.public_id)
       const secureUrl = pick(it.secureUrl ?? it.secure_url ?? it.url)
 
-      // Priorität: Cloudinary secureUrl (funktioniert immer)
-      // Wenn secureUrl fehlt: aus publicId ableiten
-      const full = secureUrl || (publicId ? cldFull(publicId) : '')
-      const card = secureUrl || (publicId ? cldCard(publicId) : '')
-      const thumb = secureUrl || (publicId ? cldThumb(publicId) : '')
+      /* BUGFIX: cloudinaryDelivery helpers expect an asset object (not a string publicId) */
+      const asset = publicId ? ({ publicId } as any) : null
+
+      const full = secureUrl || (asset ? cldFull(asset) : '')
+      const card = secureUrl || (asset ? cldCard(asset) : '')
+      const thumb = secureUrl || (asset ? cldThumb(asset) : '')
 
       return {
         id: it.id ?? i,
@@ -53,7 +55,7 @@ export function normalizeMarkerImages(marker: any): NormalizedImage[] {
         thumb,
       } satisfies NormalizedImage
     })
-    .filter(x => !!x.full)
+    .filter((x) => !!x.full)
 
   norm.sort((a, b) => a.order - b.order)
   return norm

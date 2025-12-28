@@ -132,24 +132,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AppButton from '@/components/AppButton.vue'
-import MapView from '@/components/MapLoad.vue'
 import BaseCard from '@/components/BaseCard.vue'
 import OktaWidget from '@/components/OktaWidget.vue'
-import { oktaAuth } from '@/lib/oktaAuth'
-import gemini2 from '@/assets/gemini2.png'
-import gemini1 from '@/assets/gemini1.png'
-import GlobeBg from '@/assets/globe-bg.png'
-
 import Sidebar from '@/components/DashboardSidebar.vue'
-const isSidebarOpen = ref(false)
+
+import gemini2 from '@/assets/gemini2.png'
+
+import { oktaAuth } from '@/lib/oktaAuth'
 
 defineOptions({ name: 'RegisterView' })
 
 const router = useRouter()
+
+const isSidebarOpen = ref(false)
 const showWidget = ref(false)
 
 onMounted(async () => {

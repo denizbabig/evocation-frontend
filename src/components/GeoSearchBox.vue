@@ -114,35 +114,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+/* Imports */
+import { computed, ref } from 'vue'
 import AppButton from '@/components/AppButton.vue'
 import { geocodeSearch, geocodeSuggest } from '@/lib/geocode'
 
+/* Types */
 type SuggestItem = { lat: number; lon: number; display_name: string }
-type SearchItem  = { lat: string; lon: string; display_name: string }
+type SearchItem = { lat: string; lon: string; display_name: string }
 
-const props = withDefaults(defineProps<{
-  modelValue: string
-  placeholder?: string
-  minChars?: number
-  debounceMs?: number
-  suggestLimit?: number
-  suggestLang?: string
-  searchLimit?: number
-  glow?: boolean
-  shadow?: boolean
-  showSearchButton?: boolean   // ✅ neu
-}>(), {
-  placeholder: 'Ort suchen',
-  minChars: 3,
-  debounceMs: 280,
-  suggestLimit: 7,
-  suggestLang: 'de',
-  searchLimit: 5,
-  glow: true,
-  shadow: true,
-  showSearchButton: true,      // ✅ neu
-})
+/* Props / Emits */
+const props = withDefaults(
+  defineProps<{
+    modelValue: string
+    placeholder?: string
+    minChars?: number
+    debounceMs?: number
+    suggestLimit?: number
+    suggestLang?: string
+    searchLimit?: number
+    glow?: boolean
+    shadow?: boolean
+    showSearchButton?: boolean
+  }>(),
+  {
+    placeholder: 'Ort suchen',
+    minChars: 3,
+    debounceMs: 280,
+    suggestLimit: 7,
+    suggestLang: 'de',
+    searchLimit: 5,
+    glow: true,
+    shadow: true,
+    showSearchButton: true,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
@@ -150,47 +156,117 @@ const emit = defineEmits<{
   (e: 'search', payload: { query: string; results: SearchItem[]; best?: SearchItem }): void
 }>()
 
+/* State */
 const inputEl = ref<HTMLInputElement | null>(null)
 const open = ref(false)
 const suggestions = ref<SuggestItem[]>([])
 const activeIndex = ref(-1)
 const isSearching = ref(false)
-let debounceHandle: number | undefined
 
+let debounceHandle: number | undefined
+let suggestSeq = 0
+
+const query = computed(() => (props.modelValue ?? '').trim())
+const BLUR_CLOSE_MS = 110
+
+/* Helpers */
+function splitParts(s: string) {
+  return s.split(',').map(x => x.trim()).filter(Boolean)
+}
+
+function subtitle(s: string) {
+  const p = splitParts(s)
+  return p.length > 1 ? p[p.length - 1] : ''
+}
+
+function escapeHtml(str: string) {
+  return str.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+}
+
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function highlightTitle(displayName: string) {
+  const title = splitParts(displayName)[0] || displayName
+  const q = query.value
+  if (!q) return escapeHtml(title)
+
+  const re = new RegExp(escapeRegExp(q), 'ig')
+  let last = 0
+  let out = ''
+
+  for (const m of title.matchAll(re)) {
+    const start = m.index ?? 0
+    const end = start + m[0].length
+    out += escapeHtml(title.slice(last, start))
+    out += `<span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">${escapeHtml(
+      title.slice(start, end)
+    )}</span>`
+    last = end
+  }
+
+  out += escapeHtml(title.slice(last))
+  return out
+}
+
+function resetSuggestions() {
+  suggestions.value = []
+  open.value = false
+  activeIndex.value = -1
+}
+
+function setSuggestions(list: SuggestItem[]) {
+  suggestions.value = list
+  open.value = list.length > 0
+  activeIndex.value = list.length ? 0 : -1
+}
+
+/* Suggest (debounced) */
+async function fetchSuggestions(q: string) {
+  const seq = ++suggestSeq
+  try {
+    const list = await geocodeSuggest(q, props.suggestLimit, props.suggestLang)
+    if (seq !== suggestSeq) return // stale response
+    setSuggestions(list)
+  } catch (err) {
+    if (seq !== suggestSeq) return
+    console.warn('suggest failed:', err)
+    resetSuggestions()
+  }
+}
+
+/* Events */
 function onInput(e: Event) {
   const v = (e.target as HTMLInputElement).value
   emit('update:modelValue', v)
 
   window.clearTimeout(debounceHandle)
-  if (v.trim().length < props.minChars!) {
-    suggestions.value = []
-    open.value = false
-    activeIndex.value = -1
+
+  if (v.trim().length < props.minChars) {
+    resetSuggestions()
     return
   }
-  debounceHandle = window.setTimeout(async () => {
-    try {
-      const list = await geocodeSuggest(v, props.suggestLimit!, props.suggestLang!)
-      suggestions.value = list
-      open.value = list.length > 0
-      activeIndex.value = list.length ? 0 : -1
-    } catch (err) {
-      console.warn('suggest failed:', err)
-      suggestions.value = []
-      open.value = false
-      activeIndex.value = -1
-    }
-  }, props.debounceMs)
+
+  debounceHandle = window.setTimeout(() => fetchSuggestions(v.trim()), props.debounceMs)
 }
 
-function onFocus() { if (suggestions.value.length) open.value = true }
-function onBlur()  { setTimeout(() => { open.value = false }, 110) }
+function onFocus() {
+  if (suggestions.value.length) open.value = true
+}
+
+function onBlur() {
+  window.setTimeout(() => {
+    open.value = false
+  }, BLUR_CLOSE_MS)
+}
 
 function moveSel(delta: number) {
   if (!open.value || !suggestions.value.length) return
   const n = suggestions.value.length
   activeIndex.value = (activeIndex.value + delta + n) % n
 }
+
 function pick(i: number) {
   const s = suggestions.value[i]
   if (!s) return
@@ -199,14 +275,15 @@ function pick(i: number) {
   emit('select', s)
 }
 
+/* Search */
 async function searchNow() {
-  const q = (props.modelValue ?? '').trim()
+  const q = query.value
   if (!q) return
+
   isSearching.value = true
   try {
-    const results = await geocodeSearch(q, props.searchLimit!)
-    const best = results[0] || undefined
-    emit('search', { query: q, results, best })
+    const results = await geocodeSearch(q, props.searchLimit)
+    emit('search', { query: q, results, best: results[0] || undefined })
   } catch (e) {
     console.error('search failed:', e)
     emit('search', { query: q, results: [] })
@@ -219,29 +296,6 @@ async function searchNow() {
 function onEnter() {
   if (open.value && activeIndex.value >= 0) pick(activeIndex.value)
   else searchNow()
-}
-
-/* Pretty helpers */
-function splitParts(s: string) { return s.split(',').map(x => x.trim()).filter(Boolean) }
-function subtitle(s: string)   { const p = splitParts(s); return p.length > 1 ? p[p.length - 1] : '' }
-function escapeHtml(str: string) {
-  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
-}
-function highlightTitle(displayName: string) {
-  const title = splitParts(displayName)[0] || displayName
-  const q = (inputEl.value?.value ?? '').trim()
-  if (!q) return escapeHtml(title)
-  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig')
-  let last = 0, out = ''
-  for (const m of title.matchAll(re)) {
-    const start = m.index ?? 0
-    const end = start + m[0].length
-    out += escapeHtml(title.slice(last, start))
-    out += `<span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">${escapeHtml(title.slice(start, end))}</span>`
-    last = end
-  }
-  out += escapeHtml(title.slice(last))
-  return out
 }
 </script>
 

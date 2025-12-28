@@ -690,22 +690,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, nextTick, reactive, ref, watch, onBeforeMount, onMounted } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import AppButton from '@/components/AppButton.vue'
-import { normalizeMarkerImages } from '@/lib/markerImages'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
-import { primaryLabel } from '@/lib/reverseGeocode'
 import SavingOverlay from '@/components/SavingOverlay.vue'
+import { normalizeMarkerImages } from '@/lib/markerImages'
+import { primaryLabel } from '@/lib/reverseGeocode'
+import { uploadToCloudinary } from '@/lib/cloudinary'
 import { useTripStore } from '@/stores/TripStore'
 import { storeToRefs } from 'pinia'
-import { uploadToCloudinary } from '@/lib/cloudinary'
 import type { ImageAsset } from '@/types/ImageAsset'
-
-
 
 type ImageLike =
   | { id?: string | number; url?: string; secureUrl?: string; secure_url?: string; path?: string; order?: number | null }
   | string
+
+type Visibility = 'PRIVATE' | 'PUBLIC'
 
 type MarkerLike = {
   id: number
@@ -715,22 +715,10 @@ type MarkerLike = {
   placeName?: string | null
   images?: ImageLike[]
   visibility?: Visibility | string | null
-
-  // Trip (kann je nach Backend-Shape anders heißen)
   tripId?: number | string | null
   trip_id?: number | string | null
   trip?: { id?: number | string | null; title?: string | null } | null
 } | null
-
-const props = withDefaults(defineProps<{
-  open: boolean
-  marker: MarkerLike
-  saving?: boolean
-}>(), {
-  saving: false,
-})
-
-const placeQuery = ref('') // Text in der GeoSearchBox
 
 type UpdateMarkerPayloadCloudinary = {
   title: string
@@ -744,61 +732,42 @@ type UpdateMarkerPayloadCloudinary = {
   visibility: Visibility
 }
 
+type DraftMedia = {
+  key: string
+  preview: string
+  isVideo: boolean
+  kind: 'existing' | 'new'
+  imageId?: string | number
+  publicId?: string
+  secureUrl?: string
+  file?: File
+  uploading?: boolean
+  uploaded?: ImageAsset
+  error?: string | null
+  isObjectUrl?: boolean
+}
+
+const props = withDefaults(defineProps<{
+  open: boolean
+  marker: MarkerLike
+  saving?: boolean
+}>(), {
+  saving: false,
+})
+
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', data: { payload: any; files: File[]; tripId: number | null }): void
 }>()
 
-async function onSave() {
-  if (busy.value) return
-  uploadError.value = null
-
-  try {
-    const raw = (await uploadAllIfNeeded()) ?? []
-
-    // ✅ Wichtig: Backend-kompatibel machen
-    const images = raw.map((img: any, idx: number) => {
-      const url = img?.url ?? img?.secureUrl ?? img?.secure_url ?? null
-      const secureUrl = img?.secureUrl ?? img?.secure_url ?? img?.url ?? null
-
-      return {
-        ...img,
-        order: idx,          // ✅ order immer neu setzen
-        url,                 // ✅ NEU: url sicherstellen
-        secureUrl,           // ✅ secureUrl sicherstellen
-      }
-    })
-
-    const payload: UpdateMarkerPayloadCloudinary = {
-      title: String(draft.title ?? '').trim(),
-      placeName: String(draft.placeName ?? '').trim() || null,
-      occurredAt: draft.occurredAt,
-      description: String(draft.description ?? ''),
-      lat: Number(draft.lat),
-      lng: Number(draft.lng),
-      images,
-      removedImageIds: Array.from(removedExistingIds.value),
-      visibility: draft.visibility, // ✅ NEU
-    }
-
-    emit('submit', {
-      payload,
-      files: [], // ✅ bleibt leer (Cloudinary already done)
-      tripId: selectedTripId.value == null ? null : Number(selectedTripId.value),
-    })
-  } catch (e: any) {
-    uploadError.value = e?.message ?? uploadError.value ?? 'Upload fehlgeschlagen'
-    step.value = 0
-  }
-}
-
 const steps = ['Bilder', 'Details', 'Überprüfen']
 const step = ref(0)
+
 const removedExistingIds = ref<Set<string | number>>(new Set())
 const fileInput = ref<HTMLInputElement | null>(null)
 const scrollEl = ref<HTMLDivElement | null>(null)
 
-type Visibility = 'PRIVATE' | 'PUBLIC'
+const placeQuery = ref('')
 
 const draft = reactive({
   title: '',
@@ -807,41 +776,15 @@ const draft = reactive({
   description: '',
   lat: 0,
   lng: 0,
-  visibility: 'PRIVATE' as Visibility, // ✅ NEU
+  visibility: 'PRIVATE' as Visibility,
 })
 
 const uploading = ref(false)
 const uploadError = ref<string | null>(null)
-
-// ✅ statt "saving" überall lieber busy benutzen
 const busy = computed(() => !!props.saving || uploading.value)
 
-// interne Media-Shape
-type DraftMedia = {
-  key: string
-  preview: string
-  isVideo: boolean
-  kind: 'existing' | 'new'
-
-  // existing
-  imageId?: string | number
-  publicId?: string
-  secureUrl?: string
-
-  // new
-  file?: File
-
-  // upload state (✅ neu)
-  uploading?: boolean
-  uploaded?: ImageAsset
-  error?: string | null
-
-  // misc
-  isObjectUrl?: boolean
-}
 const draftImages = ref<DraftMedia[]>([])
 
-// Cover-State
 const coverKey = ref<string | null>(null)
 const coverMedia = computed(() => {
   if (!draftImages.value.length) return null
@@ -862,6 +805,57 @@ function isVideoUrl(u?: string) {
   return s.includes('/video/upload/') || s.endsWith('.mp4') || s.endsWith('.mov') || s.endsWith('.webm') || s.endsWith('.m4v') || s.endsWith('.mkv')
 }
 
+const tripStore = useTripStore()
+const { trips, activeStopsSorted } = storeToRefs(tripStore)
+
+const selectedTripId = ref<string | null>(null)
+const tripResolving = ref(false)
+const tripTitleHint = ref<string | null>(null)
+
+const tripOptions = computed(() => {
+  const opts = (trips.value ?? []).map(t => ({
+    id: String((t as any).id),
+    title: ((t as any).title ?? 'Ohne Titel'),
+  }))
+  return opts
+})
+
+const selectedTripLabel = computed(() => {
+  if (selectedTripId.value == null) return null
+  return tripOptions.value.find(t => t.id === selectedTripId.value)?.title ?? null
+})
+
+const selectedTripLabelOrHint = computed(() => {
+  if (tripResolving.value) return 'Lade Trip…'
+  return selectedTripLabel.value ?? tripTitleHint.value ?? null
+})
+
+const tripNullLabel = computed(() => {
+  if (tripResolving.value) return 'Lade Trip…'
+  return tripTitleHint.value ? `Trip: ${tripTitleHint.value}` : 'Keinem Trip zugeordnet'
+})
+
+async function resolveTripIdForMarker(markerId: number): Promise<number | null> {
+  if (!markerId) return null
+  if (!trips.value?.length) await tripStore.loadTrips()
+
+  for (const t of (trips.value ?? []) as any[]) {
+    const id = Number(t?.id)
+    if (!id) continue
+
+    await tripStore.selectTrip(id)
+    if ((tripStore as any).loadStops) await (tripStore as any).loadStops(id)
+
+    const found = (activeStopsSorted.value ?? []).some(
+      (s: any) => Number(s.markerId) === Number(markerId)
+    )
+
+    if (found) return id
+  }
+
+  return null
+}
+
 function initFromMarker() {
   draft.title = props.marker?.title ?? ''
   draft.placeName = props.marker?.placeName ?? ''
@@ -876,47 +870,23 @@ function initFromMarker() {
   draft.title = m?.title ?? ''
   draft.placeName = m?.placeName ?? ''
 
-  console.group('[EditMarkerModal] FULL marker dump')
-  console.log('marker:', m)
-  console.log('marker keys:', m ? Object.keys(m) : null)
-  console.log('marker JSON:', JSON.stringify(m, null, 2))
-  console.groupEnd()
-
   const rawVis = String(m?.visibility ?? '').toUpperCase()
   draft.visibility = rawVis === 'PUBLIC' ? 'PUBLIC' : 'PRIVATE'
 
-  // versuche so viele mögliche Shapes wie sinnvoll
   const rawTripId =
     m.tripId ??
     m.trip_id ??
     m.trip?.id ??
     m.trip?.tripId ??
-    m.tripID ??                 // manche APIs…
-    m.tripID_id ??              // …
-    m.attributes?.tripId ??      // falls API nested liefert
+    m.tripID ??
+    m.tripID_id ??
+    m.attributes?.tripId ??
     m.attributes?.trip_id ??
     null
 
-  console.group('[EditMarkerModal] initFromMarker trip')
-  console.log('marker.id:', m?.id)
-  console.log('possible trip fields:', {
-    tripId: m?.tripId,
-    trip_id: m?.trip_id,
-    trip: m?.trip,
-    tripID: m?.tripID,
-    attributesTripId: m?.attributes?.tripId,
-    attributesTrip_id: m?.attributes?.trip_id,
-  })
-  console.log('rawTripId:', rawTripId, 'typeof:', typeof rawTripId)
-  console.groupEnd()
-
   selectedTripId.value = rawTripId == null ? null : String(rawTripId)
-
-  // LOG: was steht danach im Model?
-  console.log('[EditMarkerModal] selectedTripId after set:', selectedTripId.value)
   placeQuery.value = draft.placeName || ''
 
-  // Cleanup alte ObjectURLs (falls vorher Files hinzugefügt wurden)
   for (const it of draftImages.value) {
     if (it.isObjectUrl) URL.revokeObjectURL(it.preview)
   }
@@ -949,7 +919,6 @@ watch(() => props.open, async (o) => {
 
     initFromMarker()
 
-    // ✅ fallback wie StoryModal: Trip über Stops finden
     if (selectedTripId.value == null && props.marker?.id) {
       tripResolving.value = true
       try {
@@ -973,7 +942,7 @@ watch(
   () => props.marker?.id,
   async (id, oldId) => {
     if (!props.open || !id) return
-    if (oldId != null && id === oldId) return   // ✅ nicht bei refresh gleicher ID
+    if (oldId != null && id === oldId) return
 
     initFromMarker()
     if (!trips.value.length) await tripStore.loadTrips()
@@ -1036,46 +1005,8 @@ async function onFiles(e: Event) {
   updateScrollHints()
 }
 
-// Scroll hint (Arrow)
-const canScrollRight = ref(false)
-const showScrollHint = computed(() => draftImages.value.length > 3 && canScrollRight.value)
-
-function updateScrollState() {
-  const el = scrollEl.value
-  if (!el) {
-    canScrollRight.value = false
-    return
-  }
-  // 2px tolerance
-  canScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 2
-}
-
-
-/** Inline subcomponents */
-const StepDot = defineComponent({
-  name: 'StepDot',
-  props: {
-    label: { type: String, required: true },
-    active: { type: Boolean, default: false },
-    done: { type: Boolean, default: false },
-  },
-  template: `
-    <div class="flex flex-col items-center gap-2 select-none">
-      <div
-        class="h-3 w-3 rounded-full"
-        :class="active
-          ? 'bg-fuchsia-400 shadow-[0_0_0_6px_rgba(168,85,247,0.08)]'
-          : (done ? 'bg-white/30' : 'bg-white/15')"
-      />
-      <div class="text-xs" :class="active ? 'text-white/90' : 'text-white/35'">{{ label }}</div>
-    </div>
-  `,
-})
-
-
 const showScrollLeft = ref(false)
 const showScrollRight = ref(false)
-
 
 let raf = 0
 function onScroll() {
@@ -1112,7 +1043,6 @@ function scrollRight() {
 
 const dateDisplay = computed(() => {
   const v = String(draft.occurredAt || '').trim()
-  // erwartet yyyy-mm-dd (vom <input type="date">)
   if (!v || !v.includes('-')) return v
   const [y, m, d] = v.split('-')
   if (!y || !m || !d) return v
@@ -1124,12 +1054,7 @@ const dateInput = ref<HTMLInputElement | null>(null)
 function openDatePicker() {
   const el = dateInput.value
   if (!el) return
-
-  // fokus ist oft nötig
   el.focus()
-
-  // Chrome/Edge: native date picker öffnen
-  // Safari hat showPicker meist nicht -> fallback click
   // @ts-ignore
   if (typeof el.showPicker === 'function') el.showPicker()
   else el.click()
@@ -1143,7 +1068,6 @@ function onSelectPlace(s: { lat: number; lon: number; display_name: string }) {
   draft.placeName = label
   placeQuery.value = label
 
-  // optional: Titel nur füllen wenn leer
   if (!draft.title?.trim()) {
     draft.title = label
   }
@@ -1169,13 +1093,8 @@ function onPlaceSearch(payload: {
     draft.title = label
   }
 }
-const stepLineWidth = computed(() => {
-  if (steps.length <= 1) return '0%'
-  return `${(step.value / (steps.length - 1)) * 100}%`
-})
 
 const stepProgress = computed(() => step.value / (steps.length - 1))
-
 
 const draggingIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
@@ -1194,19 +1113,14 @@ function onDrop(targetIndex: number) {
   const from = draggingIndex.value
   if (from == null) return
 
-  // nichts zu tun
   if (from === targetIndex) {
     onDragEnd()
     return
   }
 
-  // reorder
   const arr = draftImages.value
   const [moved] = arr.splice(from, 1)
   arr.splice(targetIndex, 0, moved)
-
-  // falls coverKey existiert, bleibt es korrekt (key bleibt gleich)
-  // aber wenn du mal coverKey anhand index gemacht hättest: hier wäre fix.
 
   onDragEnd()
   nextTick(() => updateScrollHints())
@@ -1222,6 +1136,7 @@ const isDragging = computed(() => draggingIndex.value !== null)
 function safeId(s: string) {
   return String(s).replace(/[^a-zA-Z0-9_-]/g, '_')
 }
+
 function dashGradId(key: string) {
   return `dash-grad-${safeId(key)}`
 }
@@ -1232,17 +1147,14 @@ function removeMedia(key: string) {
 
   const m = draftImages.value[idx]
 
-  // track removed existing ids
   if (m.kind === 'existing' && m.imageId != null) {
     removedExistingIds.value.add(m.imageId)
   }
 
-  // cleanup object url
   if (m.isObjectUrl) URL.revokeObjectURL(m.preview)
 
   draftImages.value.splice(idx, 1)
 
-  // cover fix
   if (coverKey.value === key) {
     coverKey.value = draftImages.value[0]?.key ?? null
   } else if (!draftImages.value.length) {
@@ -1250,184 +1162,16 @@ function removeMedia(key: string) {
   }
 }
 
-type UpdateMarkerPayload = {
-  title: string
-  placeName: string
-  occurredAt: string
-  description: string
-  lat: number
-  lng: number
-
-  existingImages: Array<{ id: string | number; order: number }>
-  newImages: Array<{ clientKey: string; order: number; fileIndex: number }>
-  removedImageIds: Array<string | number>
-  visibility: Visibility
-}
-
-function buildUpdatePayload(): { payload: UpdateMarkerPayload; files: File[] } {
-  const existingImages: UpdateMarkerPayload['existingImages'] = []
-  const newImages: UpdateMarkerPayload['newImages'] = []
-  const files: File[] = []
-
-  let fileIndex = 0
-
-  draftImages.value.forEach((m, order) => {
-    if (m.kind === 'existing') {
-      if (m.imageId == null) return
-      existingImages.push({ id: m.imageId, order })
-    } else {
-      if (!m.file) return
-      newImages.push({ clientKey: m.key, order, fileIndex })
-      files.push(m.file)
-      fileIndex++
-    }
-  })
-
-  const payload: UpdateMarkerPayload = {
-    title: draft.title,
-    placeName: draft.placeName,
-    occurredAt: draft.occurredAt,
-    description: draft.description,
-    lat: draft.lat,
-    lng: draft.lng,
-    existingImages,
-    newImages,
-    removedImageIds: Array.from(removedExistingIds.value),
-  }
-
-  return { payload, files }
-}
-
-
-const SummaryField = defineComponent({
-  name: 'SummaryField',
-  props: {
-    label: { type: String, required: true },
-    value: { type: [String, Number], default: '—' },
-    multiline: { type: Boolean, default: false },
-  },
-  template: `
-    <div class="relative group isolate">
-      <div class="pointer-events-none absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300">
-        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 blur-[10px]" />
-        <div class="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-400/20 via-fuchsia-300/16 to-indigo-400/20" />
-        <div class="absolute inset-[1px] rounded-[14px] bg-[#0e162c]" />
-      </div>
-
-      <div class="relative z-10 rounded-2xl bg-[#111a33]/90 backdrop-blur-xl border border-white/15 px-6 py-5">
-        <div class="text-xs text-white/45 mb-1">{{ label }}</div>
-
-        <div
-          v-if="multiline"
-          class="text-white/90 whitespace-pre-wrap break-words max-h-48 overflow-auto evoc-scroll pr-1"
-        >{{ value }}</div>
-
-        <div v-else class="text-white/90">{{ value }}</div>
-      </div>
-    </div>
-  `,
-})
-
-const tripStore = useTripStore()
-const { trips, activeStopsSorted } = storeToRefs(tripStore)
-
-// WICHTIG: als String führen, damit <select> sauber matcht
-const selectedTripId = ref<string | null>(null)
-
-const tripOptions = computed(() => {
-  const opts = (trips.value ?? []).map(t => ({
-    id: String((t as any).id),
-    title: ((t as any).title ?? 'Ohne Titel'),
-  }))
-
-  return opts
-})
-
-const selectedTripLabel = computed(() => {
-  if (selectedTripId.value == null) return null
-  return tripOptions.value.find(t => t.id === selectedTripId.value)?.title ?? null
-})
-
-/** DEBUG LOGS **/
-function logTripState(tag: string) {
-  const id = selectedTripId.value
-  const ids = tripOptions.value.map(o => o.id)
-  const match = id != null ? ids.includes(id) : false
-
-  console.group(`[EditMarkerModal] ${tag}`)
-  console.log('selectedTripId:', id)
-  console.log('tripOptions.length:', tripOptions.value.length)
-  console.log('hasMatch:', match)
-  console.log('first 20 option ids:', ids.slice(0, 20))
-  console.log('selectedTripLabel:', selectedTripLabel.value)
-  console.groupEnd()
-}
-
-// Wenn Trips geladen/ändern → checken ob match da ist
-watch(
-  () => trips.value,
-  () => logTripState('trips changed'),
-  { deep: false }
-)
-
-// Wenn sich selectedTripId ändert → checken ob Vue es wieder “kaputtpatcht”
-watch(
-  () => selectedTripId.value,
-  (v, old) => {
-    console.log('[EditMarkerModal] selectedTripId changed:', old, '->', v)
-    logTripState('selectedTripId changed')
-  }
-)
-
-async function resolveTripIdForMarker(markerId: number): Promise<number | null> {
-  if (!markerId) return null
-  if (!trips.value?.length) await tripStore.loadTrips()
-
-  for (const t of (trips.value ?? []) as any[]) {
-    const id = Number(t?.id)
-    if (!id) continue
-
-    await tripStore.selectTrip(id)
-    if ((tripStore as any).loadStops) await (tripStore as any).loadStops(id)
-
-    const found = (activeStopsSorted.value ?? []).some(
-      (s: any) => Number(s.markerId) === Number(markerId)
-    )
-
-    if (found) return id
-  }
-
-  return null
-}
-
-const tripResolving = ref(false)
-
-
-const tripTitleHint = ref<string | null>(null)
-
-const selectedTripLabelOrHint = computed(() => {
-  if (tripResolving.value) return 'Lade Trip…'
-  return selectedTripLabel.value ?? tripTitleHint.value ?? null
-})
-
-const tripNullLabel = computed(() => {
-  if (tripResolving.value) return 'Lade Trip…'
-  return tripTitleHint.value ? `Trip: ${tripTitleHint.value}` : 'Keinem Trip zugeordnet'
-})
-
-
 function orderedMedia(): DraftMedia[] {
-  // draftImages ist bereits "source of truth" Reihenfolge (Cover wird bei setCover nach vorne gezogen)
   return [...draftImages.value]
 }
 
 function toImageAsset(m: DraftMedia, order: number): ImageAsset | null {
-  // existing (wir nehmen das, was wir haben)
   if (m.kind === 'existing') {
     const url = m.secureUrl || m.preview
     if (!url) return null
     return {
-      // @ts-ignore: hängt von deinem ImageAsset shape ab
+      // @ts-ignore
       id: m.imageId,
       url,
       secureUrl: url,
@@ -1436,7 +1180,6 @@ function toImageAsset(m: DraftMedia, order: number): ImageAsset | null {
     } as any
   }
 
-  // new
   if (m.uploaded) {
     return { ...m.uploaded, order } as any
   }
@@ -1449,7 +1192,6 @@ async function uploadAllIfNeeded() {
 
   const ordered = orderedMedia()
 
-  // nichts neu? -> nur images sync + order setzen
   const anyMissing = ordered.some(m => m.kind === 'new' && !m.uploaded)
   if (!anyMissing) {
     const images = ordered
@@ -1498,7 +1240,7 @@ async function uploadAllIfNeeded() {
 
 const overlayItems = computed(() =>
   draftImages.value
-    .filter(m => m.kind === 'new') // nur neue Uploads zählen (existing ist schon da)
+    .filter(m => m.kind === 'new')
     .map(m => ({
       uploading: !!m.uploading,
       uploaded: m.uploaded,
@@ -1511,6 +1253,47 @@ function toggleVisibility() {
   draft.visibility = draft.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
 }
 
+async function onSave() {
+  if (busy.value) return
+  uploadError.value = null
+
+  try {
+    const raw = (await uploadAllIfNeeded()) ?? []
+
+    const images = raw.map((img: any, idx: number) => {
+      const url = img?.url ?? img?.secureUrl ?? img?.secure_url ?? null
+      const secureUrl = img?.secureUrl ?? img?.secure_url ?? img?.url ?? null
+
+      return {
+        ...img,
+        order: idx,
+        url,
+        secureUrl,
+      }
+    })
+
+    const payload: UpdateMarkerPayloadCloudinary = {
+      title: String(draft.title ?? '').trim(),
+      placeName: String(draft.placeName ?? '').trim() || null,
+      occurredAt: draft.occurredAt,
+      description: String(draft.description ?? ''),
+      lat: Number(draft.lat),
+      lng: Number(draft.lng),
+      images,
+      removedImageIds: Array.from(removedExistingIds.value),
+      visibility: draft.visibility,
+    }
+
+    emit('submit', {
+      payload,
+      files: [],
+      tripId: selectedTripId.value == null ? null : Number(selectedTripId.value),
+    })
+  } catch (e: any) {
+    uploadError.value = e?.message ?? uploadError.value ?? 'Upload fehlgeschlagen'
+    step.value = 0
+  }
+}
 </script>
 
 <style scoped>

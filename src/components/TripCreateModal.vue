@@ -297,12 +297,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import AppButton from '@/components/AppButton.vue'
-import { useTripStore } from '@/stores/TripStore'
-import { uploadToCloudinary } from '@/lib/cloudinary'
 import SavingOverlay from '@/components/SavingOverlay.vue'
+import { uploadToCloudinary } from '@/lib/cloudinary'
+import { useTripStore } from '@/stores/TripStore'
 import type { Visibility } from '@/types/Marker'
 
-const visibility = ref<Visibility>('PRIVATE')
+/* Props */
 const props = withDefaults(
   defineProps<{
     open: boolean
@@ -311,37 +311,57 @@ const props = withDefaults(
   { externalBusy: false }
 )
 
+/* Emits */
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'created'): void
 }>()
 
+/* Stores */
 const tripStore = useTripStore()
 
-/** Title */
+/* Refs/State */
+const visibility = ref<Visibility>('PRIVATE')
+
 const title = ref('')
 const titleTouched = ref(false)
 const titleInput = ref<HTMLInputElement | null>(null)
-const titleOk = computed(() => !!title.value.trim())
-const displayTitle = computed(() => title.value.trim() || 'Dein Trip')
 
-/** Busy */
 const working = ref(false)
 const coverUploading = ref(false)
-const busy = computed(() => working.value || coverUploading.value || !!props.externalBusy)
 
-/** ✅ SavingOverlay progress (2 steps per medium: request + response) */
 const progress = ref<number | null>(null)
 const totalSteps = ref(0)
 const doneSteps = ref(0)
 
+const localError = ref<string | null>(null)
+const coverError = ref<string | null>(null)
+
+const coverInputEl = ref<HTMLInputElement | null>(null)
+const coverFile = ref<File | null>(null)
+const coverPreview = ref<string | null>(null)
+const coverAsset = ref<any | null>(null)
+
+/* Computeds */
+const titleOk = computed(() => !!title.value.trim())
+const displayTitle = computed(() => title.value.trim() || 'Dein Trip')
+const busy = computed(() => working.value || coverUploading.value || !!props.externalBusy)
+
+const coverUploaded = computed(() => {
+  const a = coverAsset.value
+  return !!a && !!(a.url || a.secureUrl || a.secure_url)
+})
+
+const coverIsVideo = computed(() => !!coverFile.value?.type?.startsWith('video/'))
+
+/* Helpers */
 function startProgressFlow() {
   progress.value = 0
   doneSteps.value = 0
 
   const mediaCount = coverFile.value ? 1 : 0
-  totalSteps.value = Math.max(1, mediaCount * 2 + 2) // +2 = createTrip request/response
-  tickStep(0) // keep at 0
+  totalSteps.value = Math.max(1, mediaCount * 2 + 2)
+  tickStep(0)
 }
 
 function tickStep(n = 1) {
@@ -351,25 +371,7 @@ function tickStep(n = 1) {
 
 function endProgressFlow() {
   progress.value = 100
-  // optional: leave at 100 until modal closes
 }
-
-/** Errors */
-const localError = ref<string | null>(null)
-const coverError = ref<string | null>(null)
-
-/** Cover */
-const coverInputEl = ref<HTMLInputElement | null>(null)
-const coverFile = ref<File | null>(null)
-const coverPreview = ref<string | null>(null)
-const coverAsset = ref<any | null>(null)
-
-const coverUploaded = computed(() => {
-  const a = coverAsset.value
-  return !!a && !!(a.url || a.secureUrl || a.secure_url)
-})
-
-const coverIsVideo = computed(() => !!coverFile.value?.type?.startsWith('video/'))
 
 function revokeCoverPreview() {
   if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
@@ -393,6 +395,18 @@ function reset() {
   visibility.value = 'PRIVATE'
 }
 
+/* Watchers */
+watch(
+  () => props.open,
+  async (o) => {
+    if (!o) return
+    reset()
+    await nextTick()
+    titleInput.value?.focus()
+  }
+)
+
+/* UI Handlers */
 function pickCover() {
   if (busy.value) return
   coverInputEl.value?.click()
@@ -419,6 +433,11 @@ function clearCover() {
   revokeCoverPreview()
 }
 
+function toggleVisibility() {
+  visibility.value = visibility.value === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
+}
+
+/* Upload/Transform */
 async function uploadCover() {
   if (!coverFile.value) return
   if (coverUploading.value) return
@@ -426,14 +445,11 @@ async function uploadCover() {
   coverError.value = null
   coverUploading.value = true
   try {
-    // step: cover upload request
     tickStep(1)
     const asset = await uploadToCloudinary(coverFile.value, { log: true, order: 0 })
     coverAsset.value = asset
-    // step: cover upload response
     tickStep(1)
   } catch (e: any) {
-    console.error(e)
     coverError.value = e?.message ?? 'Cover-Upload fehlgeschlagen.'
     throw e
   } finally {
@@ -448,7 +464,7 @@ async function ensureCoverUploadedIfNeeded() {
   if (!coverUploaded.value) throw new Error(coverError.value || 'Cover konnte nicht hochgeladen werden.')
 }
 
-/** Create */
+/* Final Actions */
 async function submit() {
   titleTouched.value = true
   if (!titleOk.value) return
@@ -475,10 +491,8 @@ async function submit() {
       if (publicId) payload.coverPublicId = publicId
     }
 
-    // step: createTrip request
     tickStep(1)
     await tripStore.createTrip(payload)
-    // step: createTrip response
     tickStep(1)
 
     endProgressFlow()
@@ -486,7 +500,6 @@ async function submit() {
     emit('created')
     emit('close')
   } catch (e: any) {
-    console.error(e)
     localError.value = e?.message ?? 'Konnte Trip nicht erstellen.'
     progress.value = null
   } finally {
@@ -494,31 +507,18 @@ async function submit() {
   }
 }
 
-/** Escape */
+/* Escape */
 function onKeyDown(e: KeyboardEvent) {
   if (!props.open) return
   if (e.key === 'Escape' && !busy.value) emit('close')
 }
 
-watch(
-  () => props.open,
-  async (o) => {
-    if (!o) return
-    reset()
-    await nextTick()
-    titleInput.value?.focus()
-  }
-)
-
 window.addEventListener('keydown', onKeyDown)
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   revokeCoverPreview()
 })
-function toggleVisibility() {
-  visibility.value = visibility.value === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
-}
-
 </script>
 
 <style scoped>

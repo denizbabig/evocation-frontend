@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { apiFetch } from '@/lib/api'
-import type { Trip, TripStop } from '@/types/Trip'
 import type { Visibility } from '@/types/Marker'
+import type { Trip, TripStop } from '@/types/Trip'
 
+/* Types */
 type CreateTripPayload = {
   title: string
   coverUrl?: string | null
@@ -13,8 +14,9 @@ type CreateTripPayload = {
 
 type UpdateTripPayload = Partial<CreateTripPayload>
 
-
+/* Store */
 export const useTripStore = defineStore('trip', {
+  /* State */
   state: () => ({
     trips: [] as Trip[],
     activeTripId: null as number | null,
@@ -23,21 +25,23 @@ export const useTripStore = defineStore('trip', {
     error: null as string | null,
   }),
 
+  /* Getters */
   getters: {
     activeTrip(state) {
       return state.trips.find(t => t.id === state.activeTripId) ?? null
     },
+
     activeStopsSorted(state) {
       return [...state.stops].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
     },
-
   },
 
-
+  /* Actions */
   actions: {
     async loadTrips() {
       this.isLoading = true
       this.error = null
+
       try {
         this.trips = await apiFetch('/trips')
 
@@ -62,9 +66,9 @@ export const useTripStore = defineStore('trip', {
       }
     },
 
-    // ✅ backward compatible: createTrip("China") funktioniert weiterhin
     async createTrip(titleOrPayload: string | CreateTripPayload) {
       this.error = null
+
       try {
         const payload: CreateTripPayload =
           typeof titleOrPayload === 'string'
@@ -89,14 +93,13 @@ export const useTripStore = defineStore('trip', {
     syncStopCount(tripId: number, count: number) {
       const idx = this.trips.findIndex(t => Number(t.id) === Number(tripId))
       if (idx !== -1) {
-        // falls Trip typisiert ist ohne stopCount: (this.trips[idx] as any).stopCount = count
         this.trips[idx] = { ...(this.trips[idx] as any), stopCount: count }
       }
     },
 
-    // ✅ braucht Backend: PATCH /api/trips/{id}
     async updateTrip(id: number, patch: UpdateTripPayload) {
       this.error = null
+
       try {
         const updated = await apiFetch(`/trips/${id}`, {
           method: 'PATCH',
@@ -113,9 +116,9 @@ export const useTripStore = defineStore('trip', {
       }
     },
 
-    // ✅ braucht Backend: DELETE /api/trips/{id}
     async deleteTrip(id: number) {
       this.error = null
+
       try {
         await apiFetch(`/trips/${id}`, { method: 'DELETE' })
         this.trips = this.trips.filter(t => Number(t.id) !== Number(id))
@@ -151,6 +154,7 @@ export const useTripStore = defineStore('trip', {
 
     async loadStops(tripId: number) {
       this.error = null
+
       const stops = await apiFetch(`/trips/${tripId}/stops`)
       this.stops = stops ?? []
       this.syncStopCount(tripId, this.stops.length)
@@ -180,11 +184,13 @@ export const useTripStore = defineStore('trip', {
 
     async reorder(markerIdsInOrder: number[]) {
       if (!this.activeTripId) return
+
       await apiFetch(`/trips/${this.activeTripId}/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(markerIdsInOrder),
       })
+
       await this.loadStops(this.activeTripId)
     },
   },

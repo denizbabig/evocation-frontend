@@ -1,4 +1,3 @@
-<!-- src/App.vue -->
 <template>
   <div class="min-h-screen">
     <router-view />
@@ -26,13 +25,11 @@ async function loadTripsIfAuthed() {
 }
 
 onMounted(async () => {
-  // Trips nur auf protected routes laden
   if (route.meta.requiresAuth) {
     await loadTripsIfAuthed()
   }
 })
 
-// Wenn du später von public -> protected navigierst (Login), dann nachladen
 watch(
   () => route.meta.requiresAuth,
   async (needsAuth) => {

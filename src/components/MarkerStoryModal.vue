@@ -369,11 +369,11 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
+import { PlayIcon } from '@heroicons/vue/24/solid'
 import AppButton from '@/components/AppButton.vue'
 import { normalizeMarkerImages } from '@/lib/markerImages'
-import { storeToRefs } from 'pinia'
 import { useTripStore } from '@/stores/TripStore'
-import { PlayIcon } from '@heroicons/vue/24/solid'
 
 type Visibility = 'PRIVATE' | 'PUBLIC'
 
@@ -409,10 +409,21 @@ const emit = defineEmits<{
 const images = computed(() => normalizeMarkerImages(props.marker))
 
 const activeIndex = ref(0)
-watch(() => props.open, (o) => {
-  if (o) activeIndex.value = 0
-  else tripSheetOpen.value = false // ✅ Sheet schließen wenn Modal zugeht
-})
+const tripSheetOpen = ref(false)
+
+const videoEl = ref<HTMLVideoElement | null>(null)
+const isPlaying = ref(false)
+
+const videoDuration = ref(0)
+const videoTime = ref(0)
+
+let rafId: number | null = null
+
+const tripBusy = ref(false)
+const tripError = ref<string | null>(null)
+
+const tripStore = useTripStore()
+const { trips, activeTripId, activeStopsSorted } = storeToRefs(tripStore)
 
 const activeItem = computed(() => images.value[activeIndex.value] ?? images.value[0] ?? null)
 const displaySrc = computed(() => activeItem.value?.full ?? '')
@@ -430,16 +441,8 @@ function isVideoUrl(u?: string) {
     s.endsWith('.mkv')
   )
 }
-const displayIsVideo = computed(() => isVideoUrl(displaySrc.value) || isVideoUrl(activeItem.value?.thumb))
 
-function prev() {
-  if (images.value.length <= 1) return
-  activeIndex.value = (activeIndex.value - 1 + images.value.length) % images.value.length
-}
-function next() {
-  if (images.value.length <= 1) return
-  activeIndex.value = (activeIndex.value + 1) % images.value.length
-}
+const displayIsVideo = computed(() => isVideoUrl(displaySrc.value) || isVideoUrl(activeItem.value?.thumb))
 
 const placeText = computed(() => {
   const p = props.marker?.placeName?.trim()
@@ -455,6 +458,51 @@ const dateText = computed(() => {
   return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'short', year: 'numeric' }).format(dt)
 })
 
+const markerId = computed(() => Number(props.marker?.id ?? 0) || null)
+
+const activeTripLabel = computed(() => {
+  const id = activeTripId.value
+  if (!id) return '—'
+  const t = (trips.value ?? []).find((x: any) => Number(x.id) === Number(id))
+  return t?.title?.trim?.() ? t.title : `Trip #${id}`
+})
+
+const isInActiveTrip = computed(() => {
+  if (!markerId.value) return false
+  return (activeStopsSorted.value ?? []).some((s: any) => Number(s.markerId) === Number(markerId.value))
+})
+
+const tripButtonTitle = computed(() => {
+  if (!markerId.value) return 'Trip wählen'
+  return isInActiveTrip.value ? 'Aus aktivem Trip entfernen / anderen Trip wählen' : 'Zum Trip hinzufügen'
+})
+
+watch(() => props.open, (o) => {
+  if (o) activeIndex.value = 0
+  else tripSheetOpen.value = false
+})
+
+watch(displaySrc, () => {
+  stopRaf()
+  videoDuration.value = 0
+  videoTime.value = 0
+  const v = videoEl.value
+  if (!v) return
+  v.pause()
+  v.currentTime = 0
+  isPlaying.value = false
+})
+
+function prev() {
+  if (images.value.length <= 1) return
+  activeIndex.value = (activeIndex.value - 1 + images.value.length) % images.value.length
+}
+
+function next() {
+  if (images.value.length <= 1) return
+  activeIndex.value = (activeIndex.value + 1) % images.value.length
+}
+
 function onKey(e: KeyboardEvent) {
   if (!props.open) return
 
@@ -468,9 +516,6 @@ function onKey(e: KeyboardEvent) {
   }
 }
 
-const videoEl = ref<HTMLVideoElement | null>(null)
-const isPlaying = ref(false)
-
 async function togglePlay() {
   const v = videoEl.value
   if (!v) return
@@ -480,23 +525,6 @@ async function togglePlay() {
     v.pause()
   }
 }
-
-// wenn Medium wechselt: Video stoppen + zurücksetzen
-watch(displaySrc, () => {
-  stopRaf()
-  videoDuration.value = 0
-  videoTime.value = 0
-  const v = videoEl.value
-  if (!v) return
-  v.pause()
-  v.currentTime = 0
-  isPlaying.value = false
-})
-
-onBeforeUnmount(() => stopRaf())
-
-const videoDuration = ref(0)
-const videoTime = ref(0)
 
 function onLoadedMetadata(e: Event) {
   const v = e.target as HTMLVideoElement
@@ -520,8 +548,6 @@ function segmentFill(i: number) {
   return 100
 }
 
-let rafId: number | null = null
-
 function stopRaf() {
   if (rafId != null) cancelAnimationFrame(rafId)
   rafId = null
@@ -542,33 +568,6 @@ function startRaf() {
   rafId = requestAnimationFrame(tick)
 }
 
-/** Trip logic */
-const tripStore = useTripStore()
-const { trips, activeTripId, activeStopsSorted } = storeToRefs(tripStore)
-
-const tripSheetOpen = ref(false)
-const tripBusy = ref(false)
-const tripError = ref<string | null>(null)
-
-const markerId = computed(() => Number(props.marker?.id ?? 0) || null)
-
-const activeTripLabel = computed(() => {
-  const id = activeTripId.value
-  if (!id) return '—'
-  const t = (trips.value ?? []).find((x: any) => Number(x.id) === Number(id))
-  return t?.title?.trim?.() ? t.title : `Trip #${id}`
-})
-
-const isInActiveTrip = computed(() => {
-  if (!markerId.value) return false
-  return (activeStopsSorted.value ?? []).some((s: any) => Number(s.markerId) === Number(markerId.value))
-})
-
-const tripButtonTitle = computed(() => {
-  if (!markerId.value) return 'Trip wählen'
-  return isInActiveTrip.value ? 'Aus aktivem Trip entfernen / anderen Trip wählen' : 'Zum Trip hinzufügen'
-})
-
 async function openTripSheet() {
   tripError.value = null
   try {
@@ -579,7 +578,6 @@ async function openTripSheet() {
 
     tripSheetOpen.value = true
   } catch (e) {
-    console.error(e)
     tripSheetOpen.value = true
   }
 }
@@ -591,19 +589,15 @@ async function toggleMarkerInTrip(targetTripId: number) {
 
   const targetId = Number(targetTripId)
 
-  // helper: check current store stops (for currently selected trip)
   const markerIsInCurrentSelectedTrip = () =>
     (activeStopsSorted.value ?? []).some((s: any) => Number(s.markerId) === Number(markerId.value))
 
   try {
-    // --- 0) sicherstellen, dass wir beim "aktuellen aktiven Trip" einen validen Stop-Stand haben
     const currentActiveId = Number(activeTripId.value || 0) || null
     if (currentActiveId && (tripStore as any).loadStops) {
       await (tripStore as any).loadStops(currentActiveId)
     }
 
-    // --- 1) Wenn User den aktuell aktiven Trip anklickt: toggle add/remove im selben Trip
-    // (wenn marker drin -> remove, sonst add)
     if (currentActiveId && currentActiveId === targetId) {
       await tripStore.selectTrip(targetId)
       if ((tripStore as any).loadStops) await (tripStore as any).loadStops(targetId)
@@ -620,8 +614,6 @@ async function toggleMarkerInTrip(targetTripId: number) {
       return
     }
 
-    // --- 2) Move-Case: von aktivem Trip -> targetTrip
-    // Wenn Marker im aktiven Trip steckt, dann zuerst dort entfernen
     if (currentActiveId) {
       await tripStore.selectTrip(currentActiveId)
       if ((tripStore as any).loadStops) await (tripStore as any).loadStops(currentActiveId)
@@ -632,7 +624,6 @@ async function toggleMarkerInTrip(targetTripId: number) {
       }
     }
 
-    // --- 3) Dann in target hinzufügen
     await tripStore.selectTrip(targetId)
     if ((tripStore as any).loadStops) await (tripStore as any).loadStops(targetId)
     await tripStore.addStop(markerId.value)
@@ -644,10 +635,8 @@ async function toggleMarkerInTrip(targetTripId: number) {
   } catch (e: any) {
     const msg = String(e?.message ?? e)
 
-    // --- 4) Fallback: wenn 409 => Marker steckt in irgendeinem anderen Trip (nicht unbedingt activeTrip)
     if (msg.includes('409') || msg.toLowerCase().includes('already assigned')) {
       try {
-        // wir suchen den Trip, der den Marker hält, entfernen ihn dort, und versuchen dann nochmal addStop(target)
         for (const t of (trips.value ?? []) as any[]) {
           const id = Number(t?.id)
           if (!id) continue
@@ -663,7 +652,6 @@ async function toggleMarkerInTrip(targetTripId: number) {
           }
         }
 
-        // retry add in target
         await tripStore.selectTrip(targetId)
         if ((tripStore as any).loadStops) await (tripStore as any).loadStops(targetId)
         await tripStore.addStop(markerId.value)
@@ -674,18 +662,17 @@ async function toggleMarkerInTrip(targetTripId: number) {
         tripSheetOpen.value = false
         return
       } catch (e2) {
-        console.error(e2)
         tripError.value = 'Marker konnte nicht verschoben werden (Konflikt).'
       }
     } else {
       tripError.value = 'Konnte Marker nicht zum Trip hinzufügen.'
     }
-
-    console.error(e)
   } finally {
     tripBusy.value = false
   }
 }
+
+onBeforeUnmount(() => stopRaf())
 
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -705,7 +692,6 @@ watch(displaySrc, () => {
   v.currentTime = 0
   isPlaying.value = false
 })
-
 </script>
 
 <style scoped>

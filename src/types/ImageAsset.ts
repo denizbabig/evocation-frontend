@@ -12,8 +12,6 @@ export type ImageAsset = {
   alt?: string
   order: number
   createdAt?: string
-
-  // ✅ neu
   mediaType?: MediaType
-  duration?: number // Sekunden (nur Video)
+  duration?: number
 }

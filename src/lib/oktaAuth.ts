@@ -1,6 +1,7 @@
-// src/lib/oktaAuth.ts
+/* Imports */
 import { OktaAuth, toRelativeUrl } from '@okta/okta-auth-js'
 
+/* Constants */
 const issuer = import.meta.env.VITE_OKTA_ISSUER as string
 const clientId = import.meta.env.VITE_OKTA_CLIENT_ID as string
 const redirectUri = import.meta.env.VITE_OKTA_REDIRECT_URI as string
@@ -11,13 +12,7 @@ const scopes = String(import.meta.env.VITE_OKTA_SCOPES || 'openid,profile,email'
   .map((s) => s.trim())
   .filter(Boolean)
 
-if (!issuer || !clientId || !redirectUri) {
-  // damit du sofort siehst, falls env fehlt
-  console.warn('[okta] Missing env config', { issuer, clientId, redirectUri })
-}
-
-
-
+/* Okta Auth */
 export const oktaAuth = new OktaAuth({
   issuer,
   clientId,
@@ -25,32 +20,33 @@ export const oktaAuth = new OktaAuth({
   scopes,
   pkce: true,
   tokenManager: {
-  storage: 'localStorage',
-  autoRenew: true,
-  autoRemove: true,
-},
+    storage: 'localStorage',
+    autoRenew: true,
+    autoRemove: true,
+  },
 })
 
+/* Init */
+if (!issuer || !clientId || !redirectUri) {
+  /* BUGFIX: env fehlt => sonst später schwer zu debuggen */
+  console.warn('[okta] Missing env config', { issuer, clientId, redirectUri })
+}
+
+/* Public API */
 export async function loginRedirect(fromUri?: string) {
   if (fromUri) oktaAuth.setOriginalUri(fromUri)
   await oktaAuth.signInWithRedirect()
 }
 
 export async function handleLoginRedirect() {
-  // nur ausführen, wenn wir wirklich im Okta-Redirect sind
-  if (!oktaAuth.isLoginRedirect()) {
-    return '/'
-  }
+  if (!oktaAuth.isLoginRedirect()) return '/'
 
   await oktaAuth.handleRedirect()
 
   const originalUri = oktaAuth.getOriginalUri()
   oktaAuth.removeOriginalUri()
 
-  // relative URL für vue-router
-  return originalUri
-    ? toRelativeUrl(originalUri, window.location.origin)
-    : '/'
+  return originalUri ? toRelativeUrl(originalUri, window.location.origin) : '/'
 }
 
 export async function logoutRedirect() {
@@ -60,8 +56,6 @@ export async function logoutRedirect() {
 export async function registerRedirect(fromUri?: string) {
   if (fromUri) oktaAuth.setOriginalUri(fromUri)
   await oktaAuth.signInWithRedirect({
-    // Okta Classic: öffnet direkt Sign Up
-    // (Wenn du Identity Engine nutzt, funktioniert das i.d.R. auch – sonst fällt er zurück auf Sign In.)
     extraParams: { prompt: 'login' },
   })
 }

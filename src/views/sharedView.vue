@@ -264,27 +264,28 @@
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
-
 import {
-  Bars3Icon,
-  MagnifyingGlassPlusIcon,
-  MagnifyingGlassMinusIcon,
-  MapPinIcon,
   ArrowPathIcon,
+  Bars3Icon,
+  MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon,
+  MapPinIcon,
 } from '@heroicons/vue/24/outline'
 
-import MapLoad from '@/components/MapLoad.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import GeoSearchBox from '@/components/GeoSearchBox.vue'
 import LoadingOverlay from '@/components/LoadingOverlay.vue'
-import gemini2 from '@/assets/gemini2.png'
+import MapLoad from '@/components/MapLoad.vue'
 import MarkerStoryModal from '@/components/MarkerStoryModal.vue'
 import TripSwitcher from '@/components/TripSwitcher.vue'
 
+import gemini2 from '@/assets/gemini2.png'
+
 import { useShareStore } from '@/stores/ShareStore'
+
 import type { Marker } from '@/types/Marker'
 import type { SharedTrip } from '@/types/Share'
 
@@ -292,9 +293,6 @@ defineOptions({ name: 'SharedViewPage' })
 
 const router = useRouter()
 const route = useRoute()
-
-const share = useShareStore()
-const { markers, trips, isLoading, error } = storeToRefs(share)
 
 const isSidebarOpen = ref(false)
 const searchQuery = ref('')
@@ -306,6 +304,12 @@ const clusterOn = ref(false)
 
 const selectedId = ref<number | null>(null)
 const detailOpen = ref(false)
+
+const MIN_DETAIL_ZOOM = 6.5
+const pendingOpenId = ref<number | null>(null)
+
+const share = useShareStore()
+const { markers, trips, isLoading, error } = storeToRefs(share)
 
 const selected = computed<Marker | null>(() => {
   if (selectedId.value == null) return null
@@ -343,8 +347,33 @@ const activeTripLabel = computed(() => {
 
 function noop() {}
 
-function goHome() {
-  router.push('/')
+function fitDisplayMarkers(padding = 96) {
+  const list = displayMarkers.value as any[]
+  if (!list?.length) return
+
+  if (list.length === 1) {
+    const m = list[0]
+    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 6.5)
+    return
+  }
+
+  let west = Infinity
+  let south = Infinity
+  let east = -Infinity
+  let north = -Infinity
+
+  for (const m of list) {
+    const lat = Number(m.lat)
+    const lng = Number(m.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    west = Math.min(west, lng)
+    south = Math.min(south, lat)
+    east = Math.max(east, lng)
+    north = Math.max(north, lat)
+  }
+
+  if (west === Infinity) return
+  mapRef.value?.fitBounds?.(west, south, east, north, padding)
 }
 
 async function loadShared() {
@@ -357,21 +386,21 @@ async function loadShared() {
 
   try {
     await share.loadShared(code)
-
-    // default: "Alle Marker"
     selectedTripId.value = null
 
-    // URL gewinnt immer
-    const hasForcedPos =
-      !!route.query.goto || !!route.query.center || !!route.query.focus
+    const hasForcedPos = !!route.query.goto || !!route.query.center || !!route.query.focus
 
     await nextTick()
     if (!hasForcedPos) {
       fitDisplayMarkers()
     }
   } catch {
-    // error kommt aus store
+    /* noop */
   }
+}
+
+function goHome() {
+  router.push('/')
 }
 
 async function onSelectTrip(id: number | null) {
@@ -380,55 +409,24 @@ async function onSelectTrip(id: number | null) {
   fitDisplayMarkers()
 }
 
-function fitDisplayMarkers(padding = 96) {
-  const list = displayMarkers.value as any[]
-  if (!list?.length) return
-
-  // 1 Marker => flyTo
-  if (list.length === 1) {
-    const m = list[0]
-    mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 6.5)
-    return
-  }
-
-  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
-
-  for (const m of list) {
-    const lat = Number(m.lat)
-    const lng = Number(m.lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-    west  = Math.min(west,  lng)
-    south = Math.min(south, lat)
-    east  = Math.max(east,  lng)
-    north = Math.max(north, lat)
-  }
-
-  if (west === Infinity) return
-  mapRef.value?.fitBounds?.(west, south, east, north, padding)
-}
-
-
-
 function handleOpenOnMap(id: number) {
   const m = (markers.value as any[]).find(x => Number(x.id) === Number(id))
   if (m) mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 13)
 }
 
-// map controls
 const onZoomIn = () => mapRef.value?.zoomIn()
 const onZoomOut = () => mapRef.value?.zoomOut()
 const onReset = () => mapRef.value?.resetView?.()
 
 const onLocate = () => {
-  if (!navigator.geolocation) return console.warn('Geolocation not supported')
+  if (!navigator.geolocation) return
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => mapRef.value?.flyTo(coords.latitude, coords.longitude, 13),
-    (err) => console.warn('Geolocation error:', err),
+    () => {},
     { enableHighAccuracy: true, timeout: 8000 }
   )
 }
 
-// search
 function onSuggestSelect(s: { lat: number; lon: number; display_name: string }) {
   mapRef.value?.flyTo(s.lat, s.lon, 10)
 }
@@ -438,7 +436,6 @@ function onSearchResults(payload: { query: string; results: Array<any>; best?: {
   if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 10)
 }
 
-// query helpers (wie gehabt)
 async function applyGotoFromQuery() {
   const goto = route.query.goto as string | undefined
   const zoomStr = route.query.zoom as string | undefined
@@ -464,35 +461,6 @@ async function applyFocusFromQuery() {
   const m = (markers.value as any[]).find(x => Number(x.id) === Number(id))
   if (m) mapRef.value?.flyTo(Number(m.lat), Number(m.lng), 13)
 }
-
-
-onMounted(async () => {
-  await loadShared()
-
-  const center = route.query.center as string | undefined
-  const zStr = route.query.z as string | undefined
-  if (center) {
-    const [latStr, lonStr] = center.split(',')
-    const lat = Number(latStr)
-    const lon = Number(lonStr)
-    const z = zStr ? Number(zStr) : 10
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      mapRef.value?.flyTo(lat, lon, z)
-    }
-  }
-
-  applyGotoFromQuery()
-  applyFocusFromQuery()
-})
-
-watch(() => route.params.code, async () => {
-  await loadShared()
-  applyGotoFromQuery()
-  applyFocusFromQuery()
-})
-
-const MIN_DETAIL_ZOOM = 6.5
-const pendingOpenId = ref<number | null>(null)
 
 function openDetail(id: number) {
   selectedId.value = id
@@ -531,9 +499,36 @@ watch(selectedTripId, () => {
   detailOpen.value = false
 })
 
-
 watch(() => route.query.goto, () => applyGotoFromQuery())
 watch(() => route.query.focus, () => applyFocusFromQuery())
+
+watch(
+  () => route.params.code,
+  async () => {
+    await loadShared()
+    applyGotoFromQuery()
+    applyFocusFromQuery()
+  }
+)
+
+onMounted(async () => {
+  await loadShared()
+
+  const center = route.query.center as string | undefined
+  const zStr = route.query.z as string | undefined
+  if (center) {
+    const [latStr, lonStr] = center.split(',')
+    const lat = Number(latStr)
+    const lon = Number(lonStr)
+    const z = zStr ? Number(zStr) : 10
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      mapRef.value?.flyTo(lat, lon, z)
+    }
+  }
+
+  applyGotoFromQuery()
+  applyFocusFromQuery()
+})
 </script>
 
 <style scoped>

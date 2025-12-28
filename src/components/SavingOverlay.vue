@@ -146,91 +146,51 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 type UploadLike = {
-  // minimal: what we need to compute steps
   uploading?: boolean
   uploaded?: any
   error?: string | null
   isVideo?: boolean
 }
 
-const props = withDefaults(
-  defineProps<{
-    open: boolean
-    title?: string
-    message?: string
-    hint?: string
-    blockClose?: boolean
-
-    /**
-     * ✅ Determinate progress:
-     * - If you already have percent, pass it here.
-     * - If null, we can compute percent from items + step logic (recommended).
-     */
-    progress?: number | null
-
-    /**
-     * ✅ New: step-based progress (clean, deterministic)
-     * - items = your draft media list (existing/new). We only look at upload state fields.
-     * - Steps: 2 per image (request + response), 3 per video (request + response + optional processing step)
-     */
-    items?: UploadLike[] | null
-    videoExtraStep?: boolean
-
-    /**
-     * Fallback (dummy progress) when no progress + no items
-     */
-    autoProgress?: boolean
-    autoProgressSpeed?: number
-    autoProgressStep?: [number, number]
-
-    /**
-     * UI
-     */
-    progressLabel?: string
-    eta?: boolean
-    showSteps?: boolean
-  }>(),
-  {
-    title: 'Speichere Änderungen…',
-    message: 'Deine Bilder und Videos werden hochgeladen.',
-    hint: '',
-    blockClose: true,
-
-    progress: null,
-    items: null,
-    videoExtraStep: true,
-
-    autoProgress: false,
-    autoProgressSpeed: 220,
-    autoProgressStep: () => [2, 7],
-
-    progressLabel: 'Upload',
-    eta: true,
-    showSteps: false,
-  }
-)
+const props = withDefaults(defineProps<{
+  open: boolean
+  title?: string
+  message?: string
+  hint?: string
+  blockClose?: boolean
+  progress?: number | null
+  items?: UploadLike[] | null
+  videoExtraStep?: boolean
+  autoProgress?: boolean
+  autoProgressSpeed?: number
+  autoProgressStep?: [number, number]
+  progressLabel?: string
+  eta?: boolean
+  showSteps?: boolean
+}>(), {
+  title: 'Speichere Änderungen…',
+  message: 'Deine Bilder und Videos werden hochgeladen.',
+  hint: '',
+  blockClose: true,
+  progress: null,
+  items: null,
+  videoExtraStep: true,
+  autoProgress: false,
+  autoProgressSpeed: 220,
+  autoProgressStep: () => [2, 7],
+  progressLabel: 'Upload',
+  eta: true,
+  showSteps: false,
+})
 
 function clampProgress(p: number) {
   return Math.max(0, Math.min(100, Math.round(p)))
 }
 
-/**
- * ---- Step-based progress (preferred when items provided)
- * Per image: 2 steps (request start, response success)
- * Per video: 2 steps + optional 1 extra step (processing) => 3
- *
- * We map your existing state:
- * - uploading === true  -> request step done
- * - uploaded truthy     -> response step done
- * - (video extra step)  -> we count it as done when uploaded is truthy (optional but feels good)
- */
 const totalSteps = computed(() => {
   const items = props.items ?? []
   if (!items.length) return 0
-  return items.reduce((sum, it) => {
-    const base = it?.isVideo && props.videoExtraStep ? 3 : 2
-    return sum + base
-  }, 0)
+  return items.reduce((sum, it) => sum + (it?.isVideo && props.videoExtraStep ? 3 : 2), 0)
 })
 
 const doneSteps = computed(() => {
@@ -241,13 +201,8 @@ const doneSteps = computed(() => {
     const isVideo = !!it?.isVideo
     const baseSteps = isVideo && props.videoExtraStep ? 3 : 2
 
-    // step 1: request started
     const s1 = it?.uploading ? 1 : 0
-
-    // step 2: response received
     const s2 = it?.uploaded ? 1 : 0
-
-    // optional step 3: video processing (we "credit" it on uploaded too to keep it clean)
     const s3 = baseSteps === 3 ? (it?.uploaded ? 1 : 0) : 0
 
     return sum + s1 + s2 + s3
@@ -261,10 +216,8 @@ const stepProgressPercent = computed<number | null>(() => {
   return clampProgress((done / total) * 100)
 })
 
-/**
- * ---- internal dummy progress (fallback)
- */
 const internalProgress = ref<number | null>(null)
+
 let timer: number | null = null
 
 function stopTimer() {
@@ -279,8 +232,8 @@ function startAutoProgress() {
   const startedAt = Date.now()
   timer = window.setInterval(() => {
     if (!props.open) return
-    const cur = internalProgress.value ?? 0
 
+    const cur = internalProgress.value ?? 0
     const maxTarget = 95
     if (cur >= maxTarget) return
 
@@ -305,7 +258,6 @@ watch(
       return
     }
 
-    // auto progress only if no real progress AND no items-driven progress
     const noReal = props.progress == null
     const noItems = !props.items?.length
     if (props.autoProgress && noReal && noItems) startAutoProgress()
@@ -318,6 +270,7 @@ watch(
   () => props.autoProgress,
   (v) => {
     if (!props.open) return
+
     const noReal = props.progress == null
     const noItems = !props.items?.length
     if (v && noReal && noItems) startAutoProgress()
@@ -331,7 +284,6 @@ watch(
 watch(
   () => props.progress,
   (p) => {
-    // real percent overrides everything
     if (p != null) {
       stopTimer()
       internalProgress.value = null
@@ -342,7 +294,6 @@ watch(
 watch(
   () => props.items,
   () => {
-    // items-driven progress overrides dummy
     if (props.items?.length) {
       stopTimer()
       internalProgress.value = null
@@ -353,13 +304,6 @@ watch(
 
 onBeforeUnmount(stopTimer)
 
-/**
- * ---- resolved progress priority:
- * 1) explicit props.progress
- * 2) step-based from items
- * 3) dummy internal
- * 4) null => indeterminate bar
- */
 const resolvedProgress = computed<number | null>(() => {
   if (typeof props.progress === 'number') return clampProgress(props.progress)
   if (props.items?.length) return stepProgressPercent.value
@@ -370,10 +314,8 @@ const resolvedProgress = computed<number | null>(() => {
 const progressLabel = computed(() => props.progressLabel)
 const showSteps = computed(() => props.showSteps)
 
-/**
- * ---- ETA (rough but useful)
- */
 const startedAtRef = ref<number | null>(null)
+
 watch(
   () => props.open,
   (o) => {
@@ -384,8 +326,10 @@ watch(
 
 const etaText = computed(() => {
   if (!props.eta) return ''
+
   const p = resolvedProgress.value
   if (typeof p !== 'number' || p <= 2 || p >= 100) return ''
+
   const startedAt = startedAtRef.value
   if (!startedAt) return ''
 
@@ -397,6 +341,7 @@ const etaText = computed(() => {
   if (!isFinite(remaining) || remaining <= 0) return ''
 
   if (remaining < 60) return `~${Math.round(remaining)}s`
+
   const m = Math.floor(remaining / 60)
   const s = Math.round(remaining % 60).toString().padStart(2, '0')
   return `~${m}:${s}`

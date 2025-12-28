@@ -79,17 +79,19 @@
 </template>
 
 <script setup lang="ts">
+/* Imports */
 import { ref } from 'vue'
 
-const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
-
+/* Refs */
 const ids = ref<string[]>([
-  // ✅ dein Upload aus der Response:
   'evocation/demo/img_ae5b759d-21b7-40f4-8613-82cf53cb07e4',
-  // 👇 hier einfach deinen zweiten public_id rein
-  ''
+  '',
 ])
 
+/* Constants */
+const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
+
+/* Pure Helpers */
 function cldUrl(publicId: string, transforms: string) {
   if (!cloudName) return ''
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transforms}/${publicId}`

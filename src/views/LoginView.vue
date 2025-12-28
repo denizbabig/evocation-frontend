@@ -108,42 +108,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+/* Imports */
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/AppButton.vue'
-import MapView from '@/components/MapLoad.vue'
 import BaseCard from '@/components/BaseCard.vue'
 import OktaWidget from '@/components/OktaWidget.vue'
+import gemini2 from '@/assets/gemini2.png'
 import { oktaAuth } from '@/lib/oktaAuth'
-import gemini2 from "@/assets/gemini2.png";
 
+/* Constants */
 defineOptions({ name: 'LoginView' })
 
+/* Refs */
 const router = useRouter()
 const route = useRoute()
 const showWidget = ref(false)
 
 let unsubscribe: null | (() => void) = null
 
+/* UI Handlers */
 function redirectAfterLogin() {
-  // nutzt deine bestehende "from" Idee, falls vorhanden – sonst fallback
   const from = (route.query.from as string) || '/mapview'
   router.replace(from)
 }
 
+/* Watcher */
 onMounted(async () => {
-  // 1) falls beim Laden schon eingeloggt
   const state = oktaAuth.authStateManager.getAuthState()
   if (state?.isAuthenticated) {
     redirectAfterLogin()
     return
   }
 
-  // 2) wichtig: reagiert auf Login aus dem Widget
   const handler = (authState: any) => {
     if (authState?.isAuthenticated) {
-      showWidget.value = false // optional: verhindert “Zurück”-UI nach login
+      showWidget.value = false
       redirectAfterLogin()
     }
   }
