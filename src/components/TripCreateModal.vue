@@ -70,7 +70,7 @@
                     <input
                       ref="coverInputEl"
                       type="file"
-                      accept="image/*,video/*"
+                      accept="image/*"
                       class="hidden"
                       @change="onPickCover"
                     />

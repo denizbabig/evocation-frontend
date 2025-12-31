@@ -32,56 +32,90 @@
       style="background-image: linear-gradient(to right, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 80px 80px;"
     />
 
-    <!-- nav links -->
-    <nav class="absolute top-0 left-0 w-full z-40 flex items-center justify-start p-6 md:px-12">
-      <div class="flex items-center gap-6">
+    <!-- ✅ TOP OVERLAY (mobile: hamburger + search | desktop: hamburger + centered logo + search below) -->
+    <header
+      class="fixed top-0 left-0 right-0 z-50
+         px-4 pt-4 md:px-12 md:pt-6
+         pointer-events-none"
+      style="padding-top: calc(env(safe-area-inset-top) + 12px);"
+    >
+      <!-- ✅ MOBILE ROW: hamburger + search (no logo text) -->
+      <div class="md:hidden pointer-events-auto flex items-center gap-3">
         <button
           @click="isSidebarOpen = true"
-          class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
+          class="shrink-0 p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
           aria-label="Menü öffnen"
         >
-          <Bars3Icon class="w-8 h-8" />
+          <Bars3Icon class="w-7 h-7" />
         </button>
 
-        <div class="flex items-center gap-2 select-none cursor-pointer" @click="goHome">
-          <span
-            class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
-          >
-            Evocation
-          </span>
+        <div class="flex-1 min-w-0">
+          <GeoSearchBox
+            v-model="searchQuery"
+            class="w-full"
+            placeholder="Ort suchen"
+            :showSearchButton="false"
+            @select="onSuggestSelect"
+            @search="onSearchResults"
+          />
         </div>
       </div>
-    </nav>
 
-    <!-- Search + active trip (centered, bigger, clean spacing) -->
-    <div class="absolute z-40 top-8 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6">
-      <div class="flex flex-col items-center gap-3">
-        <GeoSearchBox
-          v-model="searchQuery"
-          class="w-full"
-          placeholder="Ort suchen"
-          @select="onSuggestSelect"
-          @search="onSearchResults"
-        />
-
-        <!-- active trip pill -->
-        <div class="w-full flex justify-center">
-          <div
-            class="inline-flex items-center justify-center gap-2 rounded-2xl
-                   bg-[#111a33]/75 border border-white/18 backdrop-blur-xl
-                   px-4 py-2 text-sm text-white/80 shadow-lg shadow-black/25"
+      <!-- ✅ DESKTOP TOP ROW: hamburger left, logo centered (NOT next to each other) -->
+      <div class="hidden md:block pointer-events-auto">
+        <div class="relative flex items-center h-12">
+          <button
+            @click="isSidebarOpen = true"
+            class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition duration-200"
+            aria-label="Menü öffnen"
           >
-            <span class="text-base">🧳</span>
-            <span class="text-white/55">Aktiver Trip:</span>
-            <span
-              class="font-semibold bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent max-w-[70vw] truncate"
-            >
-              {{ activeTripLabel }}
-            </span>
+            <Bars3Icon class="w-8 h-8" />
+          </button>
+
+          <!-- centered brand -->
+          <div
+            class="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 select-none cursor-pointer"
+            @click="goHome"
+          >
+        <span
+          class="text-2xl font-black tracking-[0.2em] uppercase bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
+        >
+          Evocation
+        </span>
           </div>
         </div>
+
+        <!-- desktop search in its own row -->
+        <div class="mt-4 max-w-2xl mx-auto">
+          <GeoSearchBox
+            v-model="searchQuery"
+            class="w-full"
+            placeholder="Ort suchen"
+            :showSearchButton="false"
+            @select="onSuggestSelect"
+            @search="onSearchResults"
+          />
+        </div>
       </div>
-    </div>
+
+      <!-- Active trip pill (both) -->
+      <div class="pointer-events-auto mt-3 flex justify-center">
+        <div
+          class="inline-flex items-center justify-center gap-2 rounded-2xl
+             bg-[#111a33]/75 border border-white/18 backdrop-blur-xl
+             px-4 py-2 text-sm text-white/80 shadow-lg shadow-black/25
+             max-w-[92vw]"
+        >
+          <span class="text-base">🧳</span>
+          <span class="text-white/55">Aktiver Trip:</span>
+          <span
+            class="font-semibold bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent truncate"
+          >
+        {{ activeTripLabel }}
+      </span>
+        </div>
+      </div>
+    </header>
 
     <CreateTripModal
       :open="createTripOpen"
@@ -90,9 +124,8 @@
       @submit="submitCreateTrip"
     />
 
-    <!-- ✅ Right control stack (TripSwitcher + buttons) -->
-    <div class="absolute z-50 top-44 right-6 md:right-10 flex flex-col gap-3">
-      <!-- Trip switcher as same-size button -->
+    <!-- ✅ Desktop controls (right stack) -->
+    <div class="hidden md:flex absolute z-50 top-44 right-6 md:right-10 flex-col gap-3">
       <div class="evoc-ring">
         <TripSwitcher
           compact
@@ -150,7 +183,78 @@
           <LinkIcon class="w-5 h-5" />
         </button>
       </div>
+    </div>
 
+    <!-- ✅ Mobile bottom dock (scrollable, no overlap) -->
+    <div
+      class="md:hidden fixed left-1/2 -translate-x-1/2 z-50
+             w-[calc(100vw-20px)] max-w-[440px]"
+      style="bottom: calc(env(safe-area-inset-bottom) + 12px);"
+    >
+      <div
+        class="rounded-2xl border border-white/12 bg-[#0b1228]/70 backdrop-blur-xl
+               shadow-2xl shadow-black/40 px-2 py-2"
+      >
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <div class="evoc-ring shrink-0">
+            <TripSwitcher
+              compact
+              :trips="trips"
+              :selected-id="tripFilterId"
+              @select="chooseTrip"
+              @create="openCreateTrip"
+            />
+          </div>
+
+          <div class="evoc-ring shrink-0">
+            <button @click="onZoomIn" class="evoc-btn" title="Zoom in" aria-label="Zoom in">
+              <MagnifyingGlassPlusIcon class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div class="evoc-ring shrink-0">
+            <button @click="onZoomOut" class="evoc-btn" title="Zoom out" aria-label="Zoom out">
+              <MagnifyingGlassMinusIcon class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div class="evoc-ring shrink-0">
+            <button @click="onLocate" class="evoc-btn" title="Mein Standort" aria-label="Mein Standort">
+              <MapPinIcon class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div class="evoc-ring shrink-0">
+            <button @click="onReset" class="evoc-btn" title="Reset" aria-label="Reset">
+              <ArrowPathIcon class="w-5 h-5" />
+            </button>
+          </div>
+
+          <div class="evoc-ring shrink-0">
+            <button
+              @click="clusterOn = !clusterOn"
+              class="evoc-btn"
+              :title="clusterOn ? 'Clustering deaktivieren' : 'Clustering aktivieren'"
+              :aria-label="clusterOn ? 'Clustering deaktivieren' : 'Clustering aktivieren'"
+            >
+              <span class="text-[18px] leading-none">
+                {{ clusterOn ? '🧩' : '📍' }}
+              </span>
+            </button>
+          </div>
+
+          <div class="evoc-ring shrink-0">
+            <button
+              @click="shareModalOpen = true"
+              class="evoc-btn"
+              title="Share-Link erstellen"
+              aria-label="Share-Link erstellen"
+            >
+              <LinkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- sidebar load -->
@@ -190,8 +294,8 @@
 
     <ShareLinkModal v-model="shareModalOpen" />
 
-    <!-- credits :) -->
-    <div class="fixed bottom-4 right-4 z-40">
+    <!-- credits :) (hide on mobile to avoid collisions) -->
+    <div class="hidden md:block fixed bottom-4 right-4 z-40">
       <div
         class="pointer-events-auto rounded-lg bg-[#0b1228]/80 border border-white/12 px-3 py-1.5 text-[11px] text-gray-300 shadow-lg shadow-black/30"
       >
@@ -201,16 +305,14 @@
           target="_blank"
           rel="noopener"
           class="underline decoration-fuchsia-300/60 hover:decoration-fuchsia-300"
-        >Nominatim</a
-        >
+        >Nominatim</a>
         (Search) ·
         <a
           href="https://photon.komoot.io/"
           target="_blank"
           rel="noopener"
           class="underline decoration-fuchsia-300/60 hover:decoration-fuchsia-300"
-        >Photon</a
-        >
+        >Photon</a>
         (Autocomplete) — © OpenStreetMap contributors
       </div>
     </div>
@@ -269,6 +371,9 @@ const MIN_DETAIL_ZOOM = 6.5
 const router = useRouter()
 const route = useRoute()
 
+const pendingFocusId = ref<number | null>(null)
+const lastFocusedId = ref<number | null>(null)
+
 const isSidebarOpen = ref(false)
 const searchQuery = ref('')
 const clusterOn = ref(false)
@@ -290,6 +395,19 @@ const createTripSaving = ref(false)
 
 const pendingOpenId = ref<number | null>(null)
 const assignedMarkerIdSet = ref<Set<number>>(new Set())
+
+/* ✅ Mobile sheet */
+const mobileSheetOpen = ref(false)
+const mobileSheetMode = ref<'trips' | 'info'>('trips')
+
+function openMobileSheet(mode: 'trips' | 'info') {
+  mobileSheetMode.value = mode
+  mobileSheetOpen.value = true
+}
+
+function closeMobileSheet() {
+  mobileSheetOpen.value = false
+}
 
 /* Stores */
 const markerStore = useMarkerStore()
@@ -378,8 +496,54 @@ function fitVisibleMarkers(padding = 96) {
   mapRef.value?.fitBounds?.(west, south, east, north, padding)
 }
 
-/* Init/Mapping */
+async function focusMarkerById(id: number, opts?: { zoom?: number; openDetail?: boolean }) {
+  const zoom = opts?.zoom ?? 13
+  const openDetail = opts?.openDetail ?? false
+
+  if (lastFocusedId.value === Number(id)) return
+
+  const m: any = markers.value.find((x: any) => Number(x.id) === Number(id))
+  if (!m) {
+    pendingFocusId.value = Number(id)
+    return
+  }
+
+  pendingFocusId.value = null
+  lastFocusedId.value = Number(id)
+
+  if (tripFilterId.value != null) {
+    tripFilterId.value = null
+    await nextTick()
+  }
+
+  await nextTick()
+
+  const targetZoom = Math.max(MIN_DETAIL_ZOOM, zoom)
+  mapRef.value?.flyTo(Number(m.lat), Number(m.lng), targetZoom)
+
+  if (openDetail) {
+    detailId.value = Number(id)
+    markerStore.setSelected?.(Number(id))
+    detailOpen.value = true
+  }
+
+  try {
+    const q: any = { ...route.query }
+    delete q.focus
+    router.replace({ query: q }).catch(() => {})
+  } catch {}
+}
+
 async function applyMapQuery() {
+  const focusStr = route.query.focus as string | undefined
+  if (focusStr) {
+    const id = Number(focusStr)
+    if (Number.isFinite(id) && id > 0) {
+      await focusMarkerById(id, { zoom: 13, openDetail: false })
+      return
+    }
+  }
+
   const gotoStr = (route.query.goto as string | undefined) ?? (route.query.center as string | undefined)
   const zoomStr = (route.query.zoom as string | undefined) ?? (route.query.z as string | undefined)
   const z = zoomStr ? Number(zoomStr) : 12
@@ -393,9 +557,18 @@ async function applyMapQuery() {
 
 /* Watcher */
 watch(
-  () => [route.query.goto, route.query.center, route.query.zoom, route.query.z, route.query.new],
+  () => [route.query.focus, route.query.goto, route.query.center, route.query.zoom, route.query.z, route.query.new],
   () => applyMapQuery(),
   { immediate: false }
+)
+
+watch(
+  () => markers.value.length,
+  async () => {
+    if (pendingFocusId.value != null) {
+      await focusMarkerById(pendingFocusId.value, { zoom: 13, openDetail: false })
+    }
+  }
 )
 
 watch(tripFilterId, () => {
@@ -412,25 +585,54 @@ function onMapClick({ lat, lng }: { lat: number; lng: number }) {
 }
 
 function onSuggestSelect(s: { lat: number; lon: number; display_name: string }) {
-  mapRef.value?.flyTo(s.lat, s.lon, 10)
+  mapRef.value?.flyTo(s.lat, s.lon, 13)
 }
 
 function onSearchResults(payload: { query: string; results: Array<any>; best?: { lat: string; lon: string } }) {
   const best = payload?.best
-  if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 10)
+  if (best) mapRef.value?.flyTo(Number(best.lat), Number(best.lon), 18)
 }
 
 const onZoomIn = () => mapRef.value?.zoomIn()
 const onZoomOut = () => mapRef.value?.zoomOut()
 const onReset = () => mapRef.value?.resetView?.()
 
-const onLocate = () => {
-  if (!navigator.geolocation) return
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => mapRef.value?.flyTo(coords.latitude, coords.longitude, 13),
-    () => {},
-    { enableHighAccuracy: true, timeout: 8000 }
-  )
+const locateBusy = ref(false)
+const locateError = ref<string | null>(null)
+
+async function onLocate() {
+  if (locateBusy.value) return
+  locateError.value = null
+
+  if (!navigator.geolocation) {
+    locateError.value = 'Geolocation wird von diesem Browser nicht unterstützt.'
+    console.warn(locateError.value)
+    return
+  }
+
+  locateBusy.value = true
+  try {
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 0,
+      })
+    })
+
+    const { latitude, longitude } = pos.coords
+    mapRef.value?.flyTo(latitude, longitude, 15)
+  } catch (e: any) {
+    console.warn('[geo] failed:', e)
+    locateError.value =
+      e?.code === 1 ? 'Standort blockiert (Permission denied).' :
+        e?.code === 2 ? 'Standort nicht verfügbar.' :
+          e?.code === 3 ? 'Standort Timeout.' :
+            (e?.message ?? 'Standort konnte nicht ermittelt werden.')
+    alert(locateError.value)
+  } finally {
+    locateBusy.value = false
+  }
 }
 
 function closeDraft() {
@@ -493,6 +695,17 @@ async function chooseTrip(id: number | null) {
 
   await nextTick()
   fitVisibleMarkers()
+}
+
+/* ✅ Mobile sheet versions: close after action */
+async function chooseTripFromSheet(id: number | null) {
+  closeMobileSheet()
+  await chooseTrip(id)
+}
+
+function openCreateTripFromSheet() {
+  closeMobileSheet()
+  openCreateTrip()
 }
 
 function openCreateTrip() {
@@ -674,6 +887,7 @@ onMounted(async () => {
   width: 44px;
   height: 44px;
   border-radius: 16px;
+  flex: 0 0 auto;
 }
 
 .evoc-ring::before {
@@ -716,5 +930,30 @@ onMounted(async () => {
 
 .evoc-btn:active {
   transform: translateY(1px);
+}
+
+/* Bottom sheet transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(16px);
+  opacity: 0;
+}
+
+/* Optional: if TripSwitcher needs breathing room in sheet */
+.evoc-mobile-sheet :deep(*) {
+  max-width: 100%;
 }
 </style>

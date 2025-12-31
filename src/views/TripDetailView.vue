@@ -91,7 +91,7 @@
 
                 <AppButton variant="secondary" size="md" @click="openAddModal()" class="w-full sm:w-auto">
               <span class="whitespace-nowrap bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
-                + Marker hinzufügen
+                Marker hinzufügen
               </span>
                 </AppButton>
 
@@ -200,6 +200,7 @@
                       isStopDragging && stopDragOverIndex === idx && stopDraggingIndex !== idx ? 'scale-[1.04]' : ''
                     ]"
                     draggable="true"
+                    @click="isStopDragging ? null : openMarkerStory(s.markerId)"
                     @dragstart="onStopDragStart(idx)"
                     @dragenter.prevent="onStopDragEnter(idx)"
                     @dragover.prevent
@@ -386,6 +387,25 @@
       @close="addOpen=false"
       @added="afterMarkerAdded"
     />
+
+    <MarkerStoryModal
+      :open="detailOpen"
+      :marker="activeDetail"
+      :readonly="false"
+      @close="detailOpen = false"
+      @open-on-map="openMarkerOnMap"
+      @edit="handleEdit"
+      @delete="deleteMarker"
+    />
+
+    <MarkerEditModal
+      :open="editOpen"
+      :marker="activeMarker"
+      :saving="editSaving"
+      @close="editOpen = false"
+      @submit="onEditSubmit"
+    />
+
   </div>
 </template>
 
@@ -408,6 +428,10 @@ import { markerCover } from '@/lib/markerImages'
 
 import type { Visibility } from '@/types/Marker'
 
+import MarkerStoryModal from '@/components/MarkerStoryModal.vue'
+import MarkerEditModal from '@/components/MarkerEditModal.vue'
+import { updateMarkerJson } from '@/lib/markerApi'
+
 defineOptions({ name: 'TripDetailView' })
 
 const router = useRouter()
@@ -424,6 +448,23 @@ const addOpen = ref(false)
 
 const editCoverOpen = ref(false)
 const coverModalKey = ref(0)
+
+const detailOpen = ref(false)
+const detailId = ref<number | null>(null)
+
+const editOpen = ref(false)
+const editId = ref<number | null>(null)
+const editSaving = ref(false)
+
+const activeDetail = computed(() => {
+  if (detailId.value == null) return null
+  return markers.value.find((m: any) => Number(m.id) === Number(detailId.value)) ?? null
+})
+
+const activeMarker = computed(() => {
+  if (editId.value == null) return null
+  return markers.value.find((m: any) => Number(m.id) === Number(editId.value)) ?? null
+})
 
 const stopsScrollEl = ref<HTMLDivElement | null>(null)
 const showStopsScrollLeft = ref(false)
@@ -590,6 +631,60 @@ function updateStopsScrollHints() {
   const EPS = 6
   showStopsScrollLeft.value = el.scrollLeft > EPS
   showStopsScrollRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - EPS
+}
+
+async function onEditSubmit({
+                              payload,
+                              files,
+                              tripId,
+                            }: {
+  payload: any
+  files?: File[]
+  tripId: number | null
+}) {
+  if (!activeMarker.value?.id) return
+
+  editSaving.value = true
+  void files
+  void tripId
+
+  try {
+    const markerId = Number((activeMarker.value as any).id)
+
+    await updateMarkerJson(markerId, payload)
+
+    await markerStore.loadMarkers()
+
+    editOpen.value = false
+    editId.value = null
+  } finally {
+    editSaving.value = false
+  }
+}
+
+function openMarkerStory(markerId: number) {
+  detailId.value = Number(markerId)
+  detailOpen.value = true
+}
+
+function openMarkerOnMap(markerId: number) {
+  detailOpen.value = false
+  router.push({ path: '/mapview', query: { focus: String(markerId) } })
+}
+
+function handleEdit(markerId: number) {
+  detailOpen.value = false
+  editId.value = Number(markerId)
+  editOpen.value = true
+}
+
+async function deleteMarker(markerId: number) {
+  try {
+    await markerStore.deleteMarker(markerId)
+    detailOpen.value = false
+    detailId.value = null
+    if (tripStore.activeTripId) await tripStore.loadStops(tripStore.activeTripId)
+  } catch {}
 }
 
 function stopsScrollLeft() {

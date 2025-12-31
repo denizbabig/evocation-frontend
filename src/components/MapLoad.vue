@@ -229,9 +229,17 @@ function bindClusterClick() {
     const src = m.getSource(SRC_MARKERS) as any
 
     try {
-      const z: number = await src.getClusterExpansionZoom(clusterId)
+      const expansionZoom: number = await src.getClusterExpansionZoom(clusterId)
       const [lng, lat] = f.geometry.coordinates as [number, number]
-      m.easeTo({ center: [lng, lat], zoom: z, duration: 1000 })
+
+      const targetZoom = Math.min(expansionZoom + 1, MAX_FIT_ZOOM)
+
+      m.easeTo({
+        center: [lng, lat],
+        zoom: targetZoom,
+        duration: 2200,
+        easing: (t) => t * (2 - t),
+      })
     } catch (err) {
       console.warn('getClusterExpansionZoom failed:', err)
     }

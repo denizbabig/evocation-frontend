@@ -90,6 +90,13 @@
           <div class="text-sm text-gray-400">
             {{ filteredMarkers.length }} Orte gefunden
           </div>
+
+          <AppButton variant="primary" size="md" @click="createOpen = true">
+              <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
+                Marker erstellen
+              </span>
+          </AppButton>
+
         </div>
 
         <!-- Loading -->
@@ -422,7 +429,7 @@ function openDetail(id: string | number) {
 
 function handleOpenOnMap(id: number) {
   detailOpen.value = false
-  router.push({ path: '/map', query: { focus: String(id) } })
+  router.push({ path: '/mapview', query: { focus: String(id) } })
 }
 
 function handleEdit(id: number) {

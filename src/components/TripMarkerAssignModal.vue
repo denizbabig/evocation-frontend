@@ -42,7 +42,9 @@
                 <div class="flex items-start justify-between gap-4">
                   <div class="min-w-0">
                     <div class="text-lg font-bold">
-                      <span class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent">
+                      <span
+                        class="bg-gradient-to-r from-purple-400 via-fuchsia-300 to-indigo-400 bg-clip-text text-transparent"
+                      >
                         Marker zuordnen
                       </span>
                       <span class="text-white/40 font-semibold text-sm ml-2">
@@ -131,43 +133,34 @@
 
               <!-- Content -->
               <div class="px-8 py-7 overflow-y-auto">
-                <!-- responsive grid: auto-fill minmax(240px,1fr) -->
-                <div
-                  class="grid gap-x-10 gap-y-10
-                         grid-cols-[repeat(auto-fill,minmax(260px,1fr))]"
-                >
+                <div class="grid gap-x-10 gap-y-10 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
                   <div
                     v-for="m in visibleMarkers"
                     :key="m.id"
                     class="justify-self-center w-full max-w-[260px]"
                   >
-                    <!-- Outer shell (Glow + Scale on hover) -->
-                    <div
-                      class="group relative rounded-[22px] p-[1px] transition-all duration-300
-           hover:-translate-y-1"
-                    >
-                      <!-- Gradient border + glow (outside, visible) -->
+                    <!-- Outer shell -->
+                    <div class="group relative rounded-[22px] p-[1px] transition-all duration-300 hover:-translate-y-1">
+                      <!-- Gradient border + glow -->
                       <div
-                        class="pointer-events-none absolute inset-0 rounded-[22px] opacity-0 blur-[12px]
-             transition-opacity duration-300 group-hover:opacity-70"
+                        class="pointer-events-none absolute inset-0 rounded-[22px] opacity-0 blur-[12px] transition-opacity duration-300 group-hover:opacity-70"
                         style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
                       />
                       <div
-                        class="pointer-events-none absolute inset-0 rounded-[22px] opacity-0
-             transition-opacity duration-300 group-hover:opacity-100"
+                        class="pointer-events-none absolute inset-0 rounded-[22px] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                         style="background: linear-gradient(90deg, rgba(167,139,250,.95), rgba(240,171,252,.95), rgba(96,165,250,.95));"
                       />
 
                       <!-- Card surface -->
                       <div
                         class="relative h-[360px] overflow-hidden rounded-[22px]
-             border border-white/10 bg-[#141c34]/60 backdrop-blur-md
-             transition-all duration-300
-             group-hover:scale-[1.02]
-             group-hover:shadow-2xl group-hover:shadow-fuchsia-900/30
-             group-hover:border-white/20"
+                               border border-white/10 bg-[#141c34]/60 backdrop-blur-md
+                               transition-all duration-300
+                               group-hover:scale-[1.02]
+                               group-hover:shadow-2xl group-hover:shadow-fuchsia-900/30
+                               group-hover:border-white/20"
                       >
-                        <!-- Media (image/video) -->
+                        <!-- Media -->
                         <video
                           v-if="markerCoverSrc(m.id) && isVideoUrl(markerCoverSrc(m.id)!)"
                           :src="markerCoverSrc(m.id)!"
@@ -191,21 +184,8 @@
                         <div class="absolute inset-0 bg-black/15" />
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-                        <!-- Trip pill (nur Step 2) -->
-                        <div
-                          v-if="mode==='reassign' && tripLabelForMarker(m.id) && !isInCurrentTrip(m.id)"
-                          class="absolute left-4 top-4 z-20 max-w-[150px]"
-                        >
-        <span
-          class="block rounded-full px-3 py-1 text-xs font-semibold bg-white/10 border border-white/15 backdrop-blur-md truncate"
-          :title="`Trip: ${tripLabelForMarker(m.id)}`"
-        >
-          Trip: {{ tripLabelForMarker(m.id) }}
-        </span>
-                        </div>
-
-                        <!-- Action (oben rechts, kollisionsfrei) -->
-                        <div class="absolute right-4 top-4 z-20">
+                        <!-- ✅ Action (oben mittig) -->
+                        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex justify-center">
                           <AppButton
                             v-if="mode==='free'"
                             variant="primary"
@@ -214,9 +194,9 @@
                             :disabled="busy || isInCurrentTrip(m.id)"
                             @click="addToCurrentTrip(m.id)"
                           >
-          <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
-            {{ lastTouchedId === m.id ? '✓ Added' : '+ Add' }}
-          </span>
+                            <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
+                              {{ lastTouchedId === m.id ? '✓ Added' : '+ Add' }}
+                            </span>
                           </AppButton>
 
                           <AppButton
@@ -227,26 +207,26 @@
                             :disabled="busy || isInCurrentTrip(m.id) || !markerTripId(m.id)"
                             @click="reassignToCurrentTrip(m.id)"
                           >
-          <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
-            {{ lastTouchedId === m.id ? '✓ Übernommen' : 'Übernehmen' }}
-          </span>
+                            <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
+                              {{ lastTouchedId === m.id ? '✓ Übernommen' : 'Übernehmen' }}
+                            </span>
                           </AppButton>
                         </div>
 
                         <!-- Bottom text -->
-                        <div class="absolute left-0 bottom-0 z-20 w-full p-5">
+                        <div class="absolute left-0 bottom-0 z-20 w-full p-5 pb-10">
                           <div
                             class="text-lg font-semibold leading-tight line-clamp-1 text-white drop-shadow-sm transition-all duration-300
-                 group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
-                 group-hover:bg-clip-text group-hover:text-transparent"
+                                   group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
+                                   group-hover:bg-clip-text group-hover:text-transparent"
                           >
                             {{ m.title || 'Ohne Titel' }}
                           </div>
 
                           <div
-                            class="mt-1 text-sm text-white/70 line-clamp-1 transition-all duration-300
-                 group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
-                 group-hover:bg-clip-text group-hover:text-transparent"
+                            class="mt-1 mb-1 text-sm text-white/70 line-clamp-1 transition-all duration-300
+                                   group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:via-fuchsia-300 group-hover:to-indigo-400
+                                   group-hover:bg-clip-text group-hover:text-transparent"
                           >
                             {{ m.placeName || '' }}
                           </div>
@@ -254,6 +234,17 @@
                           <div v-if="isInCurrentTrip(m.id)" class="mt-2 text-[11px] text-white/55">
                             Bereits in diesem Trip
                           </div>
+                        </div>
+
+                        <!-- ✅ Trip badge unten rechts -->
+                        <div v-if="tripLabelForMarker(m.id)" class="absolute left-4 bottom-4 z-20 max-w-[170px]">
+                          <span
+                            class="block rounded-full px-3 py-1 text-[11px] font-semibold
+                                   bg-white/10 border border-white/15 backdrop-blur-md truncate"
+                            :title="`Trip: ${tripLabelForMarker(m.id)}`"
+                          >
+                            Trip: {{ tripLabelForMarker(m.id) }}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -322,6 +313,8 @@ const emit = defineEmits<{
 const tripStore = useTripStore()
 const markerStore = useMarkerStore()
 
+const markerTripMap = ref<Map<number, number>>(new Map())
+
 const { trips, stops } = storeToRefs(tripStore)
 const { markers } = storeToRefs(markerStore)
 
@@ -347,14 +340,31 @@ function isInCurrentTrip(markerId: number) {
 }
 
 function markerTripId(markerId: number): number | null {
-  const m: any = markers.value.find((x: any) => Number(x.id) === Number(markerId))
-  const tid = m?.tripId ?? m?.assignedTripId ?? null
-  return tid ? Number(tid) : null
+  return markerTripMap.value.get(Number(markerId)) ?? null
 }
 
 function tripTitleById(id: number | null) {
   if (!id) return null
   return (trips.value ?? []).find((t: any) => Number(t.id) === Number(id))?.title ?? `Trip ${id}`
+}
+
+async function buildMarkerTripMap() {
+  const map = new Map<number, number>()
+  const list = trips.value ?? []
+
+  await Promise.all(
+    list.map(async (t: any) => {
+      const tid = Number(t?.id)
+      if (!tid) return
+      const stops = (await apiFetch(`/trips/${tid}/stops`, { method: 'GET' })) as any[]
+      for (const s of stops ?? []) {
+        const mid = Number(s?.markerId)
+        if (Number.isFinite(mid)) map.set(mid, tid)
+      }
+    })
+  )
+
+  markerTripMap.value = map
 }
 
 function tripLabelForMarker(markerId: number) {
@@ -369,8 +379,10 @@ const freeMarkers = computed(() => {
 
 const otherTripMarkers = computed(() => {
   return (markers.value as any as MarkerLite[]).filter((m) => {
-    const tid = markerTripId(Number(m.id))
-    return !!tid && Number(tid) !== Number(props.currentTripId)
+    const id = Number(m.id)
+    const isAssignedSomewhere = assignedIds.value.has(id)
+    const inCurrent = isInCurrentTrip(id)
+    return isAssignedSomewhere && !inCurrent
   })
 })
 
@@ -427,10 +439,17 @@ watch(
     if (!markers.value?.length) await markerStore.loadMarkers?.()
 
     await loadAssignedIds()
+    await buildMarkerTripMap()
     await tripStore.selectTrip(props.currentTripId)
   },
   { immediate: true }
 )
+
+watch(mode, async (m) => {
+  if (m === 'reassign' && props.open) {
+    await buildMarkerTripMap()
+  }
+})
 
 async function addToCurrentTrip(markerId: number) {
   if (busy.value) return
@@ -459,21 +478,21 @@ async function reassignToCurrentTrip(markerId: number) {
   if (busy.value) return
   error.value = null
   working.value = true
+
   try {
     const fromTripId = markerTripId(markerId)
-    if (fromTripId) {
-      const prev = tripStore.activeTripId
+
+    if (fromTripId && fromTripId !== props.currentTripId) {
       await tripStore.selectTrip(fromTripId)
       await tripStore.removeStop(markerId)
-
-      await tripStore.selectTrip(props.currentTripId)
-      void prev
     }
 
+    await tripStore.selectTrip(props.currentTripId)
     await tripStore.addStop(markerId)
 
     await loadAssignedIds()
-    if (tripStore.activeTripId) await tripStore.loadStops?.(tripStore.activeTripId)
+    await tripStore.loadStops?.(props.currentTripId)
+    markerTripMap.value.set(Number(markerId), Number(props.currentTripId)) // sofort korrekt
 
     lastTouchedId.value = markerId
     setTimeout(() => {
@@ -481,12 +500,13 @@ async function reassignToCurrentTrip(markerId: number) {
     }, 900)
 
     emit('added')
-  } catch (e: any) {
+  } catch {
     error.value = 'Konnte Marker nicht übernehmen.'
   } finally {
     working.value = false
   }
 }
+
 </script>
 
 <style scoped>

@@ -94,6 +94,13 @@
           <div class="text-sm text-gray-400">
             {{ filtered.length }} Links gefunden
           </div>
+
+          <AppButton variant="primary" size="md" @click="addOpen = true">
+              <span class="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 bg-clip-text text-transparent">
+                Link speichern
+              </span>
+          </AppButton>
+
         </div>
 
         <!-- Error -->
