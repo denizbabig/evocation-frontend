@@ -1,4 +1,8 @@
 # Evocation 
+
+Teammitglieder: 596418 - Deniz Yilmaz Babig
+HTW Mail: deniz.babig@student.htw-berlin.de
+
 Evocation ist eine kartenbasierte Travel-/Memory-App, mit der man Orte als Marker speichern, in Trips organisieren und mit anderen teilen kannst.  
 Die App besteht aus einem Vue-Frontend und einem Spring-Boot-Backend.
 
